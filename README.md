@@ -19,3 +19,6 @@ Native read-only report cards show a curve and latest100 fills, with peak/trough
 Android adds a user-started dataSync foreground service with a persistent stop notification, bounded wake lock, 5h45 session ceiling, Android15 onTimeout cleanup, explicit handoff of an existing paper session and read-only recovery of the last local report. No boot autostart or OS-limit bypass.
 iOS local execution still pauses when backgrounded. Continuous paper execution is moved to the user's Ubuntu LTS server; native clients fetch status/reports and optionally start/pause paper sessions via HTTPS. Tokens use Keychain/Keystore, separate read/control roles, and no redirect forwarding. Only saved matching configurations are polled automatically while the screen is active.
 Server code and Docker/Caddy setup are supplied in background_server/ in the local delivery ZIP, not in this public mobile-build repository. No server deployment, real orders, exchange authentication or power/firewall changes are performed by the agent.
+
+## Mobile 1.4
+Native read-only server operations center: diagnostics, paginated events, archived paper reports. See docs/CLIENT_1_4_KO.md. Server1.4 required for new operations; existing1.3 control/status remain compatible.

@@ -4,7 +4,8 @@
  <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/><uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/><uses-permission android:name="android.permission.POST_NOTIFICATIONS"/><uses-permission android:name="android.permission.WAKE_LOCK"/>
  <application android:icon="@drawable/app_icon" android:theme="@style/AppTheme" android:label="Crypto Research" android:allowBackup="false" android:supportsRtl="true" android:usesCleartextTraffic="false">
  <activity android:name=".MainActivity" android:exported="true" android:configChanges="orientation|screenSize|uiMode"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
- <service android:name=".PaperBackgroundService" android:exported="false" android:foregroundServiceType="dataSync"/>
+ <activity android:name=".ServerOperationsActivity" android:exported="false" />
+        <service android:name=".PaperBackgroundService" android:exported="false" android:foregroundServiceType="dataSync"/>
  <activity android:name=".BackgroundActivity" android:exported="false"/>
  <provider android:name=".ExportProvider" android:authorities="app.cryptoresearch.mobile.exports" android:exported="false" android:grantUriPermissions="true"/>
  </application>
