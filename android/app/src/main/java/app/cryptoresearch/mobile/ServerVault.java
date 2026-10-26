@@ -1,0 +1,9 @@
+package app.cryptoresearch.mobile;
+import android.content.Context;import android.security.keystore.*;import android.util.Base64;import java.security.*;import javax.crypto.*;import javax.crypto.spec.GCMParameterSpec;import java.nio.charset.StandardCharsets;
+public final class ServerVault {
+ static final String ALIAS="crypto-paper-server-token-v1";
+ static java.security.Key key()throws Exception{KeyStore s=KeyStore.getInstance("AndroidKeyStore");s.load(null);if(!s.containsAlias(ALIAS)){KeyGenerator g=KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES,"AndroidKeyStore");g.init(new KeyGenParameterSpec.Builder(ALIAS,KeyProperties.PURPOSE_ENCRYPT|KeyProperties.PURPOSE_DECRYPT).setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).build());g.generateKey();}return s.getKey(ALIAS,null);}
+ public static void save(Context c,String token)throws Exception{Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.ENCRYPT_MODE,key());String value=Base64.encodeToString(cipher.getIV(),Base64.NO_WRAP)+":"+Base64.encodeToString(cipher.doFinal(token.getBytes(StandardCharsets.UTF_8)),Base64.NO_WRAP);c.getSharedPreferences("paper-server",Context.MODE_PRIVATE).edit().putString("encrypted-token",value).apply();}
+ public static String read(Context c)throws Exception{String v=c.getSharedPreferences("paper-server",Context.MODE_PRIVATE).getString("encrypted-token","");if(v.isEmpty())return "";String[] p=v.split(":",2);Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.DECRYPT_MODE,key(),new GCMParameterSpec(128,Base64.decode(p[0],Base64.NO_WRAP)));return new String(cipher.doFinal(Base64.decode(p[1],Base64.NO_WRAP)),StandardCharsets.UTF_8);}
+ public static void clear(Context c){c.getSharedPreferences("paper-server",Context.MODE_PRIVATE).edit().remove("encrypted-token").apply();}
+}
