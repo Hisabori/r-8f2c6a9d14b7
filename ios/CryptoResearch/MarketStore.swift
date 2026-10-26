@@ -49,7 +49,7 @@ import SwiftUI
  func connectSockets(){guard connected && foreground else{return};let gen=generation
   if upbit==nil {let socket=session.webSocketTask(with:URL(string:"wss://api.upbit.com/websocket/v1")!);upbit=socket;socket.resume();let codes=symbols.map{"KRW-"+$0}+["KRW-USDT"];Task {do {let data=try JSONSerialization.data(withJSONObject:[["ticket":"crypto-public"],["type":"ticker","codes":codes]]);try await socket.send(.string(String(decoding:data,as:UTF8.self)));await receive(socket,domestic:true,generation:gen)}catch{if gen==generation{upbit=nil;status="업비트 재연결 대기"}}}}
   if binance==nil {let streams=symbols.map{$0.lowercased()+"usdt@ticker"}.joined(separator:"/");let socket=session.webSocketTask(with:URL(string:"wss://stream.binance.com:9443/stream?streams="+streams)!);binance=socket;socket.resume();Task{await receive(socket,domestic:false,generation:gen)}}
-  status="공개 시세 연결 중";if !manual {fetchFX()}
+  status="공개 시세 연결 중";if !manual && now.timeIntervalSince(lastFXTry)>300 && now.timeIntervalSince(fxReceived)>3600 {fetchFX()}
  }
  func receive(_ socket:URLSessionWebSocketTask,domestic:Bool,generation gen:Int) async {
   do {while gen==generation && foreground && connected {let message=try await socket.receive();let received=Date();let data:Data;switch message {case .data(let d):data=d;case .string(let s):data=Data(s.utf8);@unknown default:continue};guard gen==generation,let root=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any],let j=domestic ? root:root["data"] as? [String:Any] else{continue}

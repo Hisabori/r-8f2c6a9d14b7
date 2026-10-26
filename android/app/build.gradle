@@ -4,7 +4,14 @@ android {
  compileSdk 35
  defaultConfig { applicationId 'app.cryptoresearch.mobile'; minSdk 26; targetSdk 35; versionCode 1; versionName '1.0.0' }
  compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
- testOptions { unitTests.includeAndroidResources = true }
+ testOptions {
+  unitTests.includeAndroidResources = true
+  unitTests.all {
+   systemProperty 'user.home', file("$buildDir/test-home").absolutePath
+   systemProperty 'robolectric.dependency.repo.url', 'https://repo.maven.apache.org/maven2'
+   doFirst { file("$buildDir/test-home").mkdirs() }
+  }
+ }
  buildTypes { release { minifyEnabled false } }
 }
 dependencies { implementation 'com.squareup.okhttp3:okhttp:4.12.0'; testImplementation 'junit:junit:4.13.2'; testImplementation 'org.robolectric:robolectric:4.14.1' }
