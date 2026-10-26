@@ -41,6 +41,7 @@ jobs:
           xcrun simctl bootstatus "$DEVICE" -b
           set -o pipefail
           xcodebuild -project CryptoResearch.xcodeproj -scheme CryptoResearch -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath sim-build -resultBundlePath TestResults.xcresult CODE_SIGNING_ALLOWED=NO test | tee simulator-tests.log
+          xcrun xcresulttool export attachments --path TestResults.xcresult --output-path UIAttachments
           xcrun simctl install "$DEVICE" sim-build/Build/Products/Debug-iphonesimulator/CryptoResearch.app
           xcrun simctl launch "$DEVICE" app.cryptoresearch.mobile
           sleep 3
@@ -54,3 +55,4 @@ jobs:
             ios/*.log
             ios/*.png
             ios/TestResults.xcresult
+            ios/UIAttachments
