@@ -40,11 +40,22 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: app.cryptoresearch.mobile.tests
+  CryptoResearchUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [CryptoResearchUITests]
+    dependencies:
+      - target: CryptoResearch
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: app.cryptoresearch.mobile.uitests
 schemes:
   CryptoResearch:
     build:
       targets:
         CryptoResearch: all
         CryptoResearchTests: [test]
+        CryptoResearchUITests: [test]
     test:
-      targets: [CryptoResearchTests]
+      targets: [CryptoResearchTests, CryptoResearchUITests]

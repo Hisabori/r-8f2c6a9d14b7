@@ -24,7 +24,8 @@ import SwiftUI
  init() {
   let d=UserDefaults.standard
   favorites=Set(d.stringArray(forKey:"favorites") ?? ["BTC","ETH"])
-  selected=d.string(forKey:"coin") ?? "BTC"; if !symbols.contains(selected) { selected="BTC" }
+  let savedCoin=d.string(forKey:"coin") ?? "BTC"
+  selected=["BTC","ETH","XRP","SOL","DOGE","ADA"].contains(savedCoin) ? savedCoin:"BTC"
   manual=d.bool(forKey:"manual"); let f=d.double(forKey:"manualFx");manualFx=f.isFinite && f>0 ? f:1400
   alertsEnabled=d.bool(forKey:"alerts");let t=d.double(forKey:"threshold");threshold=t.isFinite && t>0 && t<=100 ? t:2
   let config=URLSessionConfiguration.ephemeral;config.timeoutIntervalForRequest=15;config.timeoutIntervalForResource=25;session=URLSession(configuration:config)
