@@ -3,8 +3,15 @@ import SwiftUI
 @MainActor final class MarketStore: ObservableObject {
  let symbols=["BTC","ETH","XRP","SOL","DOGE","ADA"]
  let names=["BTC":"비트코인","ETH":"이더리움","XRP":"리플","SOL":"솔라나","DOGE":"도지코인","ADA":"에이다"]
- @Published var quotes:[String:Quote]=[:], history:[String:[Observation]]=[:], alerts:[AlertRecord]=[]
- @Published var connected=false, status="연결 안 됨", now=Date(), fx:Double?, fxDate:Date?, fxReceived=Date.distantPast
+ @Published var quotes:[String:Quote]=[:]
+ @Published var history:[String:[Observation]]=[:]
+ @Published var alerts:[AlertRecord]=[]
+ @Published var connected=false
+ @Published var status="연결 안 됨"
+ @Published var now=Date()
+ @Published var fx:Double?
+ @Published var fxDate:Date?
+ @Published var fxReceived=Date.distantPast
  @Published var favorites:Set<String> { didSet { save() } }
  @Published var selected:String { didSet { save() } }
  @Published var manual:Bool { didSet { resetAlerts(); save() } }
