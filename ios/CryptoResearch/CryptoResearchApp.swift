@@ -32,11 +32,12 @@ struct MarketView:View {
  Text(money(store.price(store.selected))).font(.system(size:38,weight:.bold,design:.rounded)).monospacedDigit().minimumScaleFactor(0.6).lineLimit(1)
  HStack(spacing:20){metricValue("FX 김프",percent(store.premium(store.selected)));metricValue("USDT 기준 차이",percent(store.gap(store.selected)))}
  Text("UTC 당일 변동 \(percent(store.quotes[store.selected]?.change))").font(.caption).foregroundStyle(.secondary)
+ Button{store.setConnected(!store.connected)}label:{Label(store.connected ? "시세 연결 끊기":"실시간 시세 연결",systemImage:store.connected ? "pause.fill":"play.fill").font(.subheadline.weight(.semibold)).frame(maxWidth:.infinity,minHeight:48)}.modifier(CareControl())
  Picker("차트 항목",selection:$metric){Text("원화").tag(0);Text("FX 김프").tag(1);Text("USDT 차이").tag(2)}.pickerStyle(.segmented)
  ObservedChart(points:store.history[store.selected] ?? [],metric:metric,range:range,now:store.now).frame(height:180)
  Picker("관측 구간",selection:$range){ForEach([1,5,15,60],id:\.self){Text("\($0)분").tag($0)}}.pickerStyle(.segmented)
  Text("연결 후 실제 관측한 구간만 표시해요.\nFX 김프는 USDT=USD 가정 · 환율은 일별 참고값").font(.caption2).foregroundStyle(.secondary)
- Button{store.setConnected(!store.connected)}label:{Label(store.connected ? "시세 연결 끊기":"실시간 시세 연결",systemImage:store.connected ? "pause.fill":"play.fill").font(.subheadline.weight(.semibold)).frame(maxWidth:.infinity,minHeight:48)}.modifier(CareControl())
+
  }.modifier(CareCard())
  HStack{Text("\(filtered.count)개 종목").font(.headline);Spacer();Picker("정렬",selection:$sort){Text("이름순").tag(0);Text("김프 높은순").tag(1)}.pickerStyle(.menu)}
  VStack(spacing:0){ForEach(filtered,id:\.self){s in HStack{Button{store.toggleFavorite(s)}label:{Image(systemName:store.favorites.contains(s) ? "star.fill":"star").frame(width:44,height:56)}.accessibilityLabel("\(s) 관심 변경");Button{store.selected=s}label:{HStack{VStack(alignment:.leading,spacing:4){Text(store.names[s] ?? s).font(.headline).foregroundStyle(.primary);Text(s).font(.caption).foregroundStyle(.secondary)};Spacer();VStack(alignment:.trailing,spacing:4){Text(money(store.price(s))).font(.subheadline.weight(.semibold)).foregroundStyle(.primary);Text("FX \(percent(store.premium(s)))").font(.caption).foregroundStyle(Color.careBlue)}}.frame(minHeight:62)}.buttonStyle(.plain)};if s != filtered.last{Divider()}};if filtered.isEmpty{ContentUnavailable("관심 종목이 없어요",description:"별을 눌러 종목을 추가해 보세요.")}}.modifier(CareCard())
