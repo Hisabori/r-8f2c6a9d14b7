@@ -14,7 +14,8 @@ enum PaperServerAPI {
  static func canonical(_ raw:String)throws->URL {guard let c=URLComponents(string:raw.trimmingCharacters(in:.whitespacesAndNewlines)),c.scheme?.lowercased()=="https",let host=c.host,!host.isEmpty,c.user==nil,c.password==nil,c.query==nil,c.fragment==nil,(c.path.isEmpty || c.path=="/"),let u=c.url else{throw StrategyError.invalid("HTTPS 서버 기본 주소만 입력하세요 (경로·계정·쿼리 제외)")};return u}
  static func allowedPath(_ path:String)->Bool {
   if ["api/v1/status","api/v1/report","api/v1/sessions/start","api/v1/sessions/pause","api/v1/diagnostics","api/v1/events?limit=50","api/v1/sessions?limit=100"].contains(path){return true}
-  if path.range(of:"^api/v1/sessions/[0-9a-f]{32}/report$",options:.regularExpression) != nil{return true}
+  let parts=path.split(separator:"/",omittingEmptySubsequences:false)
+  if parts.count==5,parts[0]=="api",parts[1]=="v1",parts[2]=="sessions",parts[3].count==32,parts[3].allSatisfy({"0123456789abcdef".contains($0)}),parts[4]=="report"{return true}
   let prefix="api/v1/events?limit=50&before="
   if path.hasPrefix(prefix){let value=String(path.dropFirst(prefix.count));return !value.isEmpty && value.allSatisfy({$0.isASCII && $0.isNumber}) && (Int64(value) ?? 0)>0}
   return false
