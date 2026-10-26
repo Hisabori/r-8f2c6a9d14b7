@@ -1,0 +1,55 @@
+name: Mobile packages
+on:
+  push:
+    branches: ['main']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 26
+        run: |
+          ls /Applications | grep Xcode
+          XCODE=$(find /Applications -maxdepth 1 -name "Xcode_26*.app" | sort | tail -1)
+          test -n "$XCODE"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+      - name: Generate native project
+        run: |
+          brew install xcodegen
+          cd ios
+          xcodegen generate
+      - name: Device build
+        run: |
+          cd ios
+          set -o pipefail
+          xcodebuild -project CryptoResearch.xcodeproj -scheme CryptoResearch -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build | tee device-build.log
+          mkdir -p package/Payload
+          cp -R build/Build/Products/Release-iphoneos/CryptoResearch.app package/Payload/
+          cd package
+          zip -qry CryptoResearch-iOS-1.0.0-unsigned.ipa Payload
+      - name: Simulator tests and screenshot
+        run: |
+          cd ios
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(v["udid"] for a in d["devices"].values() for v in a if "iPhone" in v["name"]))')
+          xcrun simctl boot "$DEVICE" || true
+          xcrun simctl bootstatus "$DEVICE" -b
+          set -o pipefail
+          xcodebuild -project CryptoResearch.xcodeproj -scheme CryptoResearch -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath sim-build -resultBundlePath TestResults.xcresult CODE_SIGNING_ALLOWED=NO test | tee simulator-tests.log
+          xcrun simctl install "$DEVICE" sim-build/Build/Products/Debug-iphonesimulator/CryptoResearch.app
+          xcrun simctl launch "$DEVICE" app.cryptoresearch.mobile
+          sleep 3
+          xcrun simctl io "$DEVICE" screenshot iOS-market.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: CryptoResearch-iOS
+          path: |
+            ios/package/*.ipa
+            ios/*.log
+            ios/*.png
+            ios/TestResults.xcresult

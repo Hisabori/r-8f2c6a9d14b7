@@ -1,0 +1,50 @@
+name: CryptoResearch
+options:
+  deploymentTarget:
+    iOS: '16.0'
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    TARGETED_DEVICE_FAMILY: '1,2'
+    CODE_SIGNING_ALLOWED: 'NO'
+    CODE_SIGNING_REQUIRED: 'NO'
+    MARKETING_VERSION: '1.0.0'
+    CURRENT_PROJECT_VERSION: '1'
+targets:
+  CryptoResearch:
+    type: application
+    platform: iOS
+    sources: [CryptoResearch]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.cryptoresearch.mobile
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    info:
+      path: CryptoResearch/Info.plist
+      properties:
+        CFBundleDisplayName: Crypto Research
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+  CryptoResearchTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [CryptoResearchTests]
+    dependencies:
+      - target: CryptoResearch
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: app.cryptoresearch.mobile.tests
+schemes:
+  CryptoResearch:
+    build:
+      targets:
+        CryptoResearch: all
+        CryptoResearchTests: [test]
+    test:
+      targets: [CryptoResearchTests]

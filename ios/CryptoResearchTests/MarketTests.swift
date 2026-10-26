@@ -1,0 +1,8 @@
+import XCTest
+@testable import CryptoResearch
+final class MarketTests:XCTestCase {
+ func testPremium(){let now=Date(timeIntervalSince1970:1800000000);let q=Quote(krw:142800,usd:100,krwEvent:now,krwReceived:now,usdEvent:now,usdReceived:now);XCTAssertEqual(MarketMath.premium(q,fx:1400,now:now)!,2,accuracy:1e-8);XCTAssertNil(MarketMath.premium(q,fx:nil,now:now));XCTAssertNil(MarketMath.premium(q,fx:0,now:now));XCTAssertNil(MarketMath.premium(q,fx:1400,now:now.addingTimeInterval(16)))}
+ func testFreshness(){let n=Date(timeIntervalSince1970:1800000000);XCTAssertFalse(MarketMath.valid(.nan,event:n,received:n,now:n,maxAge:30));XCTAssertFalse(MarketMath.valid(1,event:n.addingTimeInterval(6),received:n,now:n,maxAge:30));XCTAssertFalse(MarketMath.valid(1,event:n,received:n.addingTimeInterval(-16),now:n,maxAge:30))}
+ func testAlert(){let n=Date(timeIntervalSince1970:1800000000);var a=PremiumAlert();XCTAssertFalse(a.evaluate(3,threshold:2,now:n));XCTAssertFalse(a.evaluate(nil,threshold:2,now:n));XCTAssertFalse(a.evaluate(3,threshold:2,now:n.addingTimeInterval(60)));XCTAssertFalse(a.evaluate(1,threshold:2,now:n));XCTAssertTrue(a.evaluate(2,threshold:2,now:n));XCTAssertFalse(a.evaluate(1,threshold:2,now:n.addingTimeInterval(1)));XCTAssertFalse(a.evaluate(2,threshold:2,now:n.addingTimeInterval(10)));XCTAssertTrue(a.evaluate(2,threshold:2,now:n.addingTimeInterval(61)))}
+ @MainActor func testDefaultsAndSnapshot()throws{let m=MarketStore();XCTAssertFalse(m.connected);XCTAssertNil(m.price("BTC"));XCTAssertNil(m.premium("BTC"));let j=try JSONSerialization.jsonObject(with:m.exportData()) as! [String:Any];XCTAssertEqual(j["mode"] as? String,"PUBLIC_QUOTES_SNAPSHOT_ONLY");XCTAssertEqual((j["quotes"] as? [Any])?.count,6)}
+}
