@@ -8,4 +8,6 @@ final class StrategyTests:XCTestCase {
  func testInvalidCosts(){XCTAssertThrowsError(try StrategyCore(.nan,5,5));XCTAssertThrowsError(try StrategyCore(1,-1,5))}
  func testLiveGap()throws{let p=try LivePaper("BTC",1000000,5,5);p.tick(1800000000000,1800000000000,1800000000000,100);p.tick(1800000016000,1800000016000,1800000016000,100);XCTAssertFalse(p.running);XCTAssertEqual(p.engine.buys,0)}
  func testPartialBar()throws{let p=try LivePaper("BTC",1000000,5,5);for i in 0...130{let t:Int64=1800000000000+Int64(i)*1000;p.tick(t,t,t,100)};XCTAssertEqual(p.engine.bars,1)}
+ func testReportCurveAndCosts()throws{var rows:[StrategyBar]=[];for i in 0..<32{let o:Double=i==31 ? 110:100,c:Double=i>=30 ? 110:100,h:Double=i>=30 ? 110:100,l:Double=i==31 ? 110:100;rows.append(StrategyBar(t:1800000000000+Int64(i)*60000,o:o,h:h,l:l,c:c,v:0))};let e=try StrategyCore.backtest(rows,1000000,5,5);XCTAssertEqual(e.equity,999800.1998501,accuracy:0.000001);XCTAssertEqual(e.curve.last!.equity,e.equity,accuracy:0.000001);XCTAssertEqual(e.fillRecords.count,2);XCTAssertGreaterThan(e.totalFees,0);let report=try JSONDecoder().decode(AnalyticsReport.self,from:e.report());XCTAssertEqual(report.equity_curve?.count,32)}
+ func testUndefinedRatios()throws{let e=try warm();XCTAssertNil(e.winRate);XCTAssertNil(e.profitFactor)}
 }

@@ -10,4 +10,5 @@ public class StrategyCoreTest {
  @Test public void liveGapPausesWithoutFilling(){StrategyCore.Live p=new StrategyCore.Live("BTC",1000000,5,5);long n=1800000000000L;p.tick(n,n,n,100);p.tick(n+16000,n+16000,n+16000,100);assertFalse(p.running);assertEquals(0,p.engine.buys);}
  @Test public void partialFirstBarDiscarded(){StrategyCore.Live p=new StrategyCore.Live("BTC",1000000,5,5);long n=1800000000000L;for(int i=0;i<=130;i++)p.tick(n+i*1000,n+i*1000,n+i*1000,100);assertEquals(1,p.engine.bars);assertEquals(0,p.engine.buys);}
  @Test public void lossGateStopsEntries(){StrategyCore e=warm();e.mark(100);e.cash=940000;e.mark(100);assertTrue(e.halted);e.pending=1;e.open(1800001800000L,100);assertEquals(0,e.buys);}
+ @Test public void undefinedRatiosStayNull(){StrategyCore e=warm();assertNull(e.winRate());assertNull(e.profitFactor());assertEquals(30,e.curve.size());}
 }
