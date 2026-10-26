@@ -20,6 +20,7 @@ import SwiftUI
  @Published var threshold:Double { didSet { resetAlerts(); save() } }
  var upbit:URLSessionWebSocketTask?, binance:URLSessionWebSocketTask?, clock:Task<Void,Never>?, fxTask:Task<Void,Never>?
  var generation=0, foreground=true, lastFXTry=Date.distantPast, alarms:[String:PremiumAlert]=[:], usdt=Quote()
+ @Published var paper:LivePaper?
  let session:URLSession
  init() {
   let d=UserDefaults.standard
@@ -40,10 +41,10 @@ import SwiftUI
  func toggleFavorite(_ s:String) { if favorites.contains(s){favorites.remove(s)}else{favorites.insert(s)} }
  func setForeground(_ value:Bool) { foreground=value;if value { startClock();if connected { connectSockets() } } else {stopTasks()} }
  func startClock() { guard clock==nil else{return};clock=Task { [weak self] in while !Task.isCancelled {guard let self=self else{return};self.tick();try? await Task.sleep(nanoseconds:1_000_000_000)} } }
- func setConnected(_ value:Bool) { connected=value;stopSockets();if value && foreground {connectSockets()}else{status="연결 안 됨"};startClock() }
+ func setConnected(_ value:Bool) { if !value{paper?.pause("시세 연결 종료")};connected=value;stopSockets();if value && foreground {connectSockets()}else{status="연결 안 됨"};startClock() }
  func stopSockets(){generation+=1;upbit?.cancel(with:.goingAway,reason:nil);binance?.cancel(with:.goingAway,reason:nil);upbit=nil;binance=nil;fxTask?.cancel();fxTask=nil}
- func stopTasks(){clock?.cancel();clock=nil;stopSockets();status="백그라운드 일시 중지"}
- func tick(){now=Date();for s in symbols {let v=premium(s);history[s,default:[]].append(Observation(time:now,price:price(s),premium:v,gap:gap(s)));if history[s,default:[]].count>3600 {history[s]?.removeFirst()};if alertsEnabled {var alarm=alarms[s] ?? PremiumAlert();if alarm.evaluate(v,threshold:threshold,now:now),let v=v {alerts.insert(AlertRecord(date:now,symbol:s,value:v),at:0);if alerts.count>100 {alerts.removeLast()}};alarms[s]=alarm}}
+ func stopTasks(){paper?.pause("백그라운드 일시 정지");clock?.cancel();clock=nil;stopSockets();status="백그라운드 일시 중지"}
+ func tick(){now=Date();if let p=paper,p.running,let q=quotes[p.symbol]{if let price=q.krw{p.tick(Int64(q.krwEvent.timeIntervalSince1970*1000),Int64(q.krwReceived.timeIntervalSince1970*1000),Int64(now.timeIntervalSince1970*1000),price)}else if now.timeIntervalSince(p.started)>15{p.pause("시세 수신 대기 초과")}};for s in symbols {let v=premium(s);history[s,default:[]].append(Observation(time:now,price:price(s),premium:v,gap:gap(s)));if history[s,default:[]].count>3600 {history[s]?.removeFirst()};if alertsEnabled {var alarm=alarms[s] ?? PremiumAlert();if alarm.evaluate(v,threshold:threshold,now:now),let v=v {alerts.insert(AlertRecord(date:now,symbol:s,value:v),at:0);if alerts.count>100 {alerts.removeLast()}};alarms[s]=alarm}}
   if connected && foreground {if upbit==nil || binance==nil {connectSockets()};if !manual && now.timeIntervalSince(lastFXTry)>300 && now.timeIntervalSince(fxReceived)>3600 {fetchFX()}}
  }
  func connectSockets(){guard connected && foreground else{return};let gen=generation

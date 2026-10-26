@@ -1,0 +1,13 @@
+package app.cryptoresearch.mobile;
+import org.junit.Test;import static org.junit.Assert.*;import java.util.*;
+public class StrategyCoreTest {
+ StrategyCore warm(){StrategyCore e=new StrategyCore(1000000,5,5);for(int i=0;i<30;i++)e.process(new StrategyCore.Bar(1800000000000L+i*60000,100,100,100,100,0));return e;}
+ @Test public void signalNeverFillsSameClose(){StrategyCore e=warm();e.process(new StrategyCore.Bar(1800001800000L,100,110,100,110,0));assertEquals(0,e.buys);assertEquals(1,e.pending);e.process(new StrategyCore.Bar(1800001860000L,110,110,110,110,0));assertEquals(1,e.buys);assertTrue(e.qty>0);assertTrue(e.equity()<e.start);}
+ @Test public void conservativeStopFirst(){StrategyCore e=warm();e.process(new StrategyCore.Bar(1800001800000L,100,110,100,110,0));e.process(new StrategyCore.Bar(1800001860000L,110,120,90,110,0));assertEquals(1,e.sells);assertTrue(e.fills.get(1).contains("손절 우선"));assertEquals(0,e.qty,0);}
+ @Test public void finalBarCannotEnter(){List<StrategyCore.Bar> rows=new ArrayList<>();for(int i=0;i<30;i++)rows.add(new StrategyCore.Bar(1800000000000L+i*60000,100,100,100,100,0));rows.add(new StrategyCore.Bar(1800001800000L,100,110,100,110,0));StrategyCore e=StrategyCore.backtest(rows,1000000,5,5);assertEquals(0,e.buys);assertEquals(0,e.pending);}
+ @Test public void csvValidates(){String h="timestamp,open,high,low,close,volume\n";String a="2026-10-01T00:00:00Z,100,101,99,100,1\n",b="2026-10-01T00:01:00Z,100,101,99,100,1";assertEquals(2,StrategyCore.csv(h+a+b).size());assertThrows(IllegalArgumentException.class,()->StrategyCore.csv(h+a+a));assertThrows(IllegalArgumentException.class,()->StrategyCore.csv(h+a+b.replace("101","90")));assertThrows(IllegalArgumentException.class,()->StrategyCore.csv(h+a+b.replace("00:01:00Z","00:01:00")));}
+ @Test public void rejectsInvalidCosts(){assertThrows(IllegalArgumentException.class,()->new StrategyCore(Double.NaN,5,5));assertThrows(IllegalArgumentException.class,()->new StrategyCore(1,-1,5));}
+ @Test public void liveGapPausesWithoutFilling(){StrategyCore.Live p=new StrategyCore.Live("BTC",1000000,5,5);long n=1800000000000L;p.tick(n,n,n,100);p.tick(n+16000,n+16000,n+16000,100);assertFalse(p.running);assertEquals(0,p.engine.buys);}
+ @Test public void partialFirstBarDiscarded(){StrategyCore.Live p=new StrategyCore.Live("BTC",1000000,5,5);long n=1800000000000L;for(int i=0;i<=130;i++)p.tick(n+i*1000,n+i*1000,n+i*1000,100);assertEquals(1,p.engine.bars);assertEquals(0,p.engine.buys);}
+ @Test public void lossGateStopsEntries(){StrategyCore e=warm();e.mark(100);e.cash=940000;e.mark(100);assertTrue(e.halted);e.pending=1;e.open(1800001800000L,100);assertEquals(0,e.buys);}
+}
