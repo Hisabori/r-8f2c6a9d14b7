@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 @MainActor final class RemotePaperStore:ObservableObject {
  @Published var address=UserDefaults.standard.string(forKey:"paper-server-url") ?? ""
  @Published var token=ServerVault.read()
@@ -18,17 +19,19 @@ struct BackgroundServerView:View {
  @EnvironmentObject var market:MarketStore
  @StateObject private var remote=RemotePaperStore()
  @Environment(\.scenePhase) private var phase
+ @State private var exportReport=false
+ @State private var document=JSONDocument(data:Data())
  @State private var confirmStart=false
- @State private var capital="1000000"
- @State private var fee="5"
- @State private var slip="5"
+ @AppStorage("execution.capital") private var capital="1000000"
+ @AppStorage("execution.fee") private var fee="5"
+ @AppStorage("execution.slip") private var slip="5"
  var body:some View{ScrollView{VStack(alignment:.leading,spacing:18){
  VStack(alignment:.leading,spacing:12){Text("Ubuntu 서버 실행").font(.title2.bold());Text("모의전략은 서버에서 계속 실행하고, iPhone은 화면을 열 때 최신 상태를 가져옵니다. 서버가 켜져 있고 네트워크가 유지되어야 합니다.").font(.subheadline).foregroundStyle(.secondary);Text("HTTPS 서버 주소").font(.caption);TextField("https://gram.example.com",text:$remote.address).textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL).textFieldStyle(.roundedBorder);Text("서버 접근 토큰 · 거래소 API 키가 아닙니다").font(.caption);SecureField("VIEW_TOKEN 또는 CONTROL_TOKEN",text:$remote.token).textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder);Button("서버 설정 저장"){remote.save()}.frame(minHeight:44);Button("기기에서 토큰 삭제"){remote.forget()}.frame(minHeight:44);Button("서버 상태 확인"){Task{await remote.call("api/v1/status")}}.frame(minHeight:44).disabled(remote.busy);if remote.busy{ProgressView()};Text(remote.message).font(.subheadline).textSelection(.enabled);if let date=remote.lastReceived{Text("앱 수신: \(date.formatted(date:.numeric,time:.standard))").font(.caption).foregroundStyle(.secondary)}}.modifier(CareCard())
  NavigationLink {ServerOperationsView(base:remote.confirmedAddress,token:remote.confirmedToken)} label:{Label("서버 운영 센터",systemImage:"server.rack").font(.headline).frame(maxWidth:.infinity,minHeight:48)}.modifier(CareCard())
  VStack(alignment:.leading,spacing:12){Text("새 서버 모의세션").font(.headline);Text("선택 종목 \(market.selected) · KRW\n이미 실행 중이면 중복 시작하지 않습니다. 정지 후 새 세션은 이전 모의계좌를 서버에 보관하고 초기화합니다.").font(.caption).foregroundStyle(.secondary);Text("시작 모의 자본 KRW").font(.caption);TextField("자본",text:$capital).keyboardType(.decimalPad).textFieldStyle(.roundedBorder);Text("수수료 / 슬리피지 (bps)").font(.caption);HStack{TextField("수수료",text:$fee);TextField("슬리피지",text:$slip)}.keyboardType(.decimalPad).textFieldStyle(.roundedBorder);Button("새 서버 모의세션 시작"){start()}.frame(minHeight:44).disabled(remote.busy || !remote.canControl || !remote.canAutoRefresh);Button("서버 모의세션 정지"){Task{await remote.call("api/v1/sessions/pause",body:[:])}}.frame(minHeight:44).disabled(remote.busy || !remote.canControl || !remote.canAutoRefresh);Button("서버 리포트 가져오기"){Task{await remote.call("api/v1/report")}}.frame(minHeight:44).disabled(remote.busy)}.modifier(CareCard())
- if !remote.report.isEmpty{ResearchAnalyticsView(data:remote.report).modifier(CareCard())}
+ if !remote.report.isEmpty{VStack(alignment:.leading,spacing:12){ResearchAnalyticsView(data:remote.report);Button("서버 리포트 JSON 저장"){do{document=JSONDocument(data:try ResearchSupport.serverReport(remote.report));exportReport=true}catch{remote.message=error.localizedDescription}}.frame(minHeight:44)}.modifier(CareCard())}
  Text("iOS 기기 안의 로컬 모의매매는 백그라운드에서 정지합니다. 서버 모의세션과 별도 계좌이며 실제 주문은 지원하지 않습니다. 앱이 보이지 않을 때의 실시간 화면 갱신/알림은 보장하지 않습니다.").font(.caption).foregroundStyle(.secondary)
- }.padding(20)}.background(Color(uiColor:.systemGroupedBackground)).navigationTitle("백그라운드 · 서버").confirmationDialog("서버 모의계좌를 새로 만들까요?",isPresented:$confirmStart,titleVisibility:.visible){Button("새 모의세션 시작",role:.destructive){performStart()};Button("취소",role:.cancel){}}message:{Text("기존 계좌를 서버에 보관하고 새 계좌를 시작합니다. 실행 중인 세션은 중복 시작하지 않습니다.")}.task(id:phase){guard phase == .active else{return};while !Task.isCancelled{if remote.canAutoRefresh{await remote.call("api/v1/status")};do{try await Task.sleep(nanoseconds:10_000_000_000)}catch{return}}}}
+ }.padding(20)}.background(Color(uiColor:.systemGroupedBackground)).navigationTitle("백그라운드 · 서버").fileExporter(isPresented:$exportReport,document:document,contentType:.json,defaultFilename:"server-paper-report"){result in if case .failure(let error)=result{remote.message=error.localizedDescription}}.onChange(of:capital){capital=ResearchSupport.boundedDraft($0)}.onChange(of:fee){fee=ResearchSupport.boundedDraft($0)}.onChange(of:slip){slip=ResearchSupport.boundedDraft($0)}.confirmationDialog("서버 모의계좌를 새로 만들까요?",isPresented:$confirmStart,titleVisibility:.visible){Button("새 모의세션 시작",role:.destructive){performStart()};Button("취소",role:.cancel){}}message:{Text("기존 계좌를 서버에 보관하고 새 계좌를 시작합니다. 실행 중인 세션은 중복 시작하지 않습니다.")}.task(id:phase){guard phase == .active else{return};while !Task.isCancelled{if remote.canAutoRefresh{await remote.call("api/v1/status")};do{try await Task.sleep(nanoseconds:10_000_000_000)}catch{return}}}}
  func start(){confirmStart=true}
  func performStart(){guard let c=Double(capital),let f=Double(fee),let s=Double(slip),c.isFinite,c>0,c<=1e15,f.isFinite,s.isFinite,(0...100).contains(f),(0...100).contains(s)else{remote.message="자본과 비용 입력을 확인하세요";return};Task{await remote.call("api/v1/sessions/start",body:["symbol":market.selected,"capital":c,"fee_bps":f,"slip_bps":s])}}
 }

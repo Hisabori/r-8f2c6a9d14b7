@@ -25,3 +25,6 @@ Native read-only server operations center: diagnostics, paginated events, archiv
 
 ## Mobile 1.5
 Android: One UI inspired native design, themes, grouped research workflow, sort/empty states and account reset confirmation. iPhone: preserve OnCare design, add native appearance choice and reset confirmation only. See docs/CLIENT_1_5_KO.md. Server remains1.4, engines/operator unchanged.
+
+## Mobile1.6
+Persist bounded local research/execution drafts, display current paper account summary, export original server report JSON, and filter archived sessions by symbol. Android One UI/iPhone OnCare remain; server stays1.4. See docs/CLIENT_1_6_KO.md.
