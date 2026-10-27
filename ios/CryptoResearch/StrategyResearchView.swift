@@ -5,6 +5,7 @@ struct StrategyResearchView:View {
  @State private var capital="1000000"
  @State private var fee="5"
  @State private var slip="5"
+ @State private var confirmPaper=false
  @State private var importing=false
  @State private var exporting=false
  @State private var busy=false
@@ -18,9 +19,10 @@ struct StrategyResearchView:View {
  }.modifier(CareCard())
  NavigationLink{ResearchView()}label:{Label("결과 JSON 열기",systemImage:"doc.text").frame(maxWidth:.infinity,minHeight:48)}.modifier(CareControl())
  Text("모바일 EMA는 별도 엔진입니다. 기존 v1.6·v1.1 멀티팩터·v1.7 구현과 동일하지 않습니다. 실거래 자동매매 코드는 동봉된 operator 폴더에서 사용자가 직접 준비·가동합니다. 앱에는 실제 주문 기능이 없습니다.").font(.caption).foregroundStyle(.secondary)
- }.padding(20)}.background(Color(uiColor:.systemGroupedBackground)).navigationTitle("연구실").fileImporter(isPresented:$importing,allowedContentTypes:[.commaSeparatedText,.plainText],allowsMultipleSelection:false){r in switch r{case .success(let urls):if let u=urls.first{loadCSV(u)};case .failure(let e):result=e.localizedDescription}}.fileExporter(isPresented:$exporting,document:document,contentType:.json,defaultFilename:"strategy-paper-result"){r in if case .failure(let e)=r{result=e.localizedDescription}}}}
+ }.padding(20)}.background(Color(uiColor:.systemGroupedBackground)).navigationTitle("연구실").confirmationDialog("모의계좌를 새로 만들까요?",isPresented:$confirmPaper,titleVisibility:.visible){Button("새 모의세션 시작",role:.destructive){performStartPaper()};Button("취소",role:.cancel){}}message:{Text("현재 모의계좌의 잔고와 상태를 초기화합니다. 먼저 결과 JSON을 저장하세요.")}.fileImporter(isPresented:$importing,allowedContentTypes:[.commaSeparatedText,.plainText],allowsMultipleSelection:false){r in switch r{case .success(let urls):if let u=urls.first{loadCSV(u)};case .failure(let e):result=e.localizedDescription}}.fileExporter(isPresented:$exporting,document:document,contentType:.json,defaultFilename:"strategy-paper-result"){r in if case .failure(let e)=r{result=e.localizedDescription}}}}
  func runSynthetic(){do{let(c,f,s)=try parameters();let e=try StrategyCore.backtest(StrategyCore.syntheticRows(),c,f,s);result="합성 테스트 · 실제 시세/성과 아님\n"+e.summary;csvReport=e.report();document=JSONDocument(data:csvReport)}catch{result=error.localizedDescription}}
  func parameters()throws->(Double,Double,Double){guard let c=Double(capital),let f=Double(fee),let s=Double(slip)else{throw StrategyError.invalid("숫자를 입력하세요")};_ = try StrategyCore(c,f,s);return(c,f,s)}
- func startPaper(){do{let(c,f,s)=try parameters();store.paper=try LivePaper(store.selected,c,f,s);store.setConnected(true)}catch{result=error.localizedDescription}}
+ func startPaper(){if store.paper != nil{confirmPaper=true}else{performStartPaper()}}
+ func performStartPaper(){do{let(c,f,s)=try parameters();store.paper=try LivePaper(store.selected,c,f,s);store.setConnected(true)}catch{result=error.localizedDescription}}
  func loadCSV(_ url:URL){do{let(c,f,s)=try parameters();busy=true;Task{let resultValue=await Task.detached(priority:.userInitiated){()->(String,Data) in let access=url.startAccessingSecurityScopedResource();defer{if access{url.stopAccessingSecurityScopedResource()}};do{let handle=try FileHandle(forReadingFrom:url);defer{try? handle.close()};let data=try handle.read(upToCount:8*1024*1024+1) ?? Data();guard data.count<=8*1024*1024,let text=String(data:data,encoding:.utf8)else{throw StrategyError.invalid("UTF-8 CSV 8MB 이하 필요")};let e=try StrategyCore.backtest(StrategyCore.csv(text),c,f,s);return(e.summary,e.report())}catch{return(error.localizedDescription,Data())}}.value;result=resultValue.0;csvReport=resultValue.1;document=JSONDocument(data:resultValue.1);busy=false}}catch{result=error.localizedDescription}}
 }

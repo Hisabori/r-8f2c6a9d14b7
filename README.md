@@ -22,3 +22,6 @@ Server code and Docker/Caddy setup are supplied in background_server/ in the loc
 
 ## Mobile 1.4
 Native read-only server operations center: diagnostics, paginated events, archived paper reports. See docs/CLIENT_1_4_KO.md. Server1.4 required for new operations; existing1.3 control/status remain compatible.
+
+## Mobile 1.5
+Android: One UI inspired native design, themes, grouped research workflow, sort/empty states and account reset confirmation. iPhone: preserve OnCare design, add native appearance choice and reset confirmation only. See docs/CLIENT_1_5_KO.md. Server remains1.4, engines/operator unchanged.
