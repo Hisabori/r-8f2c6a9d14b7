@@ -16,8 +16,10 @@ final class CommunityRedirectGuard:NSObject,URLSessionTaskDelegate {
 }
 struct CommunityView:View {
  @StateObject private var store=CommunityStore()
- @State private var symbol="전체",hours:Int64=24
- @State private var importing=false,exporting=false
+ @State private var symbol="전체"
+ @State private var hours:Int64=24
+ @State private var importing=false
+ @State private var exporting=false
  @State private var document=JSONDocument(data:Data())
  @Environment(\.openURL) private var openURL
  var analysis:CommunityAnalysis?{store.dataset.map{CommunityCore.analyze($0,symbol,hours,Int64(Date().timeIntervalSince1970*1000))}}
