@@ -8,8 +8,8 @@ settings:
     TARGETED_DEVICE_FAMILY: '1,2'
     CODE_SIGNING_ALLOWED: 'NO'
     CODE_SIGNING_REQUIRED: 'NO'
-    MARKETING_VERSION: '1.9.0'
-    CURRENT_PROJECT_VERSION: '10'
+    MARKETING_VERSION: '1.9.1'
+    CURRENT_PROJECT_VERSION: '11'
 targets:
   CryptoResearch:
     type: application
