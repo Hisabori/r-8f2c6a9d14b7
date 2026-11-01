@@ -64,7 +64,7 @@ unless project.targets.any?{|target|target.name=='SuperSuiteUITests'}
   tests.source_build_phase.add_file_reference(group.new_file('NativeModulesTests.swift'))
   tests.add_dependency(app)
   tests.build_configurations.each do |config|
-    config.build_settings.merge!({'TEST_TARGET_NAME'=>'Runner','PRODUCT_BUNDLE_IDENTIFIER'=>'app.caresuite.super.uitests','SWIFT_VERSION'=>'5.0','GENERATE_INFOPLIST_FILE'=>'YES','CODE_SIGNING_ALLOWED'=>'NO'})
+    config.build_settings.merge!({'PRODUCT_NAME'=>'SuperSuiteUITests','PRODUCT_MODULE_NAME'=>'SuperSuiteUITests','TARGETED_DEVICE_FAMILY'=>'1,2','TEST_TARGET_NAME'=>'Runner','PRODUCT_BUNDLE_IDENTIFIER'=>'app.caresuite.super.uitests','SWIFT_VERSION'=>'5.0','GENERATE_INFOPLIST_FILE'=>'YES','CODE_SIGNING_ALLOWED'=>'NO'})
   end
   path='ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme'
   scheme=Xcodeproj::XCScheme.new(path)
