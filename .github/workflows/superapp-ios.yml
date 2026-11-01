@@ -35,11 +35,20 @@ jobs:
           ruby tool/add_live_activity.rb
           ruby tool/integrate_native.rb
           xcodebuild -version
+      - uses: actions/cache/restore@v4
+        id: pods-cache
+        with:
+          path: |
+            ios/Pods
+            ~/Library/Caches/CocoaPods
+            ~/.cocoapods/repos
+          key: ${{ runner.os }}-care-pods-v1-${{ hashFiles('pubspec.lock', 'ios/SuperModules/Package.swift') }}
       - name: Build one unsigned device app
         shell: bash
         run: |
           set -euo pipefail
-          flutter build ios --release --no-codesign | tee device-build.log
+          flutter build ios --release --no-codesign --verbose > device-build.log 2>&1 || { tail -160 device-build.log; exit 1; }
+          tail -20 device-build.log
           python3 tool/verify_superapp.py --app build/ios/iphoneos/Runner.app
       - name: Build simulator and test native entry points
         shell: bash
@@ -57,6 +66,14 @@ jobs:
           cd delivery
           zip -qry Care-Suite-0.1.1-unsigned.ipa Payload
           shasum -a 256 Care-Suite-0.1.1-unsigned.ipa > SHA256.txt
+      - uses: actions/cache/save@v4
+        if: always() && steps.pods-cache.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ios/Pods
+            ~/Library/Caches/CocoaPods
+            ~/.cocoapods/repos
+          key: ${{ steps.pods-cache.outputs.cache-primary-key }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
