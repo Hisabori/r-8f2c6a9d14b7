@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>swopenapi.seoul.go.kr</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<false/>
+			</dict>
+		</dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>내 위치 버튼을 누르면 주변 장소를 찾고 출발지를 설정합니다. 위치 기반 카카오 검색·길찾기에는 선택한 위치가 전달됩니다.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>강아지 소리 녹음·분석 또는 사용자가 선택한 온케어 수면 소리 연구에 마이크를 사용합니다. 기능별로 직접 시작하고 중지합니다.</string>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Care Suite</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>Care Suite</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>온케어 연결 QR을 읽을 때만 카메라를 사용합니다.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>내 기기의 온케어 기록 연결에 Bluetooth를 사용합니다.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>내 온케어 기기와 개인 거래 서버 연결을 사용합니다.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>사용자가 선택한 건강 기록을 Apple 건강에서 읽어 온케어에 표시합니다.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>app.caresuite.super.care</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>caresuite-care</string>
+			</array>
+		</dict>
+	</array>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>app.oncare.open.sleep</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>수면 루틴</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>moon.zzz.fill</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>app.oncare.open.workout</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>운동 타이머</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>figure.walk</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>app.oncare.open.mood</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>마음 기록</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>heart.text.square.fill</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>app.oncare.open.connect</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>건강 연결</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>arrow.triangle.2.circlepath</string>
+		</dict>
+	</array>
+</dict>
+</plist>

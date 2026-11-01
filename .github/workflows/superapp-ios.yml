@@ -1,0 +1,60 @@
+name: Care Suite integrated iOS
+on:
+  workflow_dispatch:
+  push:
+    branches: [superapp-integration]
+permissions:
+  contents: read
+jobs:
+  integrated-ios:
+    runs-on: macos-latest
+    timeout-minutes: 55
+    env:
+      BYPASS_PERMISSION_LOCATION_ALWAYS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+      - name: Resolve and validate source snapshot
+        run: |
+          flutter pub get
+          python3 tool/verify_superapp.py
+          flutter analyze
+          flutter test --reporter expanded | tee flutter-tests.log
+          dart tool/check_bark_insights.dart
+      - name: Integrate native frameworks and widgets
+        run: |
+          gem install xcodeproj -v 1.27.0 --no-document --user-install
+          ruby tool/add_live_activity.rb
+          ruby tool/integrate_native.rb
+          xcodebuild -version
+      - name: Build one unsigned device app
+        run: |
+          flutter build ios --release --no-codesign | tee device-build.log
+          python3 tool/verify_superapp.py --app build/ios/iphoneos/Runner.app
+      - name: Build simulator and test native entry points
+        run: |
+          flutter build ios --simulator --debug
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for rows in d["devices"].values() for x in rows if x.get("isAvailable") and "iPhone" in x["name"]))')
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE" -only-testing:SuperSuiteUITests CODE_SIGNING_ALLOWED=NO test | tee native-ui-tests.log
+      - name: Package after successful native tests
+        run: |
+          mkdir -p delivery/Payload
+          ditto build/ios/iphoneos/Runner.app delivery/Payload/Runner.app
+          cd delivery
+          zip -qry Care-Suite-0.1.1-unsigned.ipa Payload
+          shasum -a 256 Care-Suite-0.1.1-unsigned.ipa > SHA256.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Care-Suite-iOS
+          path: |
+            delivery/*.ipa
+            delivery/SHA256.txt
+            flutter-tests.log
+            device-build.log
+            native-ui-tests.log
+          if-no-files-found: warn

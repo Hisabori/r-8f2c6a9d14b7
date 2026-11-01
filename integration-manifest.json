@@ -1,0 +1,26 @@
+{
+  "app_name": "Care Suite",
+  "new_bundle_id": "app.caresuite.super",
+  "modules": {
+    "bark_note": {
+      "version": "0.17.0+22"
+    },
+    "oncare": {
+      "version": "3.43.0/56"
+    },
+    "crypto_research": {
+      "version": "1.9.1/11"
+    }
+  },
+  "models": {
+    "yamnet.tflite": "10c95ea3eb9a7bb4cb8bddf6feb023250381008177ac162ce169694d05c317de",
+    "research-sleep.onnx": "ccc3c94646cab11d53fab9d2bedae8c777c3c5ec3f0926a421c35fe44c46400c"
+  },
+  "private_configs_copied": false,
+  "new_app_requires_explicit_data_import": true,
+  "implementation": "Flutter host + two statically linked native Swift package modules",
+  "ios_scope": "iOS first; no Android superapp package",
+  "native_build_verified": false,
+  "app_version": "0.1.1+2",
+  "design_basis": "OnCare grouped light cards and shared navigation"
+}

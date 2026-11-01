@@ -1,39 +1,47 @@
-# Crypto Research mobile 1.9
-Native SwiftUI/Java apps with public quotes, mobile CSV backtesting and foreground real-time paper execution. No private API or credentials in mobile binaries.
+# Care Suite0.1.1 — iPhone 통합 프로젝트
 
-Mobile strategy MOBILE_PAPER_EMA_SPOT_V2 is independent from the preserved Python v1.6 engine: long-only spot EMA9/21, 30-bar warmup, next-open paper fills, 10% cash allocation including fee, 1.5% stop / 3% target, 5% start-equity loss entry gate, fees/slippage configurable 0..100 bps. These are software defaults, not a recommendation. No full v1.1 multi-factor or v1.7 implementation is claimed.
-CSV needs UTF8 timestamp,open,high,low,close,volume, explicit UTC offset and strictly increasing valid bars, <=8MB / 50000 bars. Input files/configs are never overwritten. Input price currency equals starting-capital currency; no implicit USDT/KRW conversion. CSV ends by liquidating the hypothetical position with costs; live pause keeps residual paper holdings and does not simulate a forced fill.
-Live paper uses observed Upbit KRW ticker prices in 1-minute buckets; this is observed-price OHLC, not an exchange-complete trade tape. First partial bucket is discarded, 30 completed buckets are required. Stale/gapped quotes and background transitions pause the session without inventing candles or fills. New sessions explicitly reset the simulated account.
+Bark Note0.17, 온케어3.43, Crypto Research1.9.1을 단일 iOS앱으로 묶는 첫 통합본입니다. 오늘/온케어/강아지/투자/이동 메뉴와 공통 홈, 네이티브 모듈 복귀 버튼을 제공합니다. 기존 앱을 URL로 실행하는 런처가 아니라 Flutter Runner 안에 건강·거래 Swift패키지를 링크하는 구조입니다.
 
-Android: JDK17, SDK35, Gradle8.9; `gradle assembleDebug testDebugUnitTest lintDebug` in android/. iOS16+, Xcode26+, XcodeGen; `xcodegen generate`, then build/test CryptoResearch scheme. CI packages an unsigned ARM64 IPA. User must re-sign with their own Apple account before installation. Android development APK is debug-signed. No Store submission or physical installation is claimed.
+## 디렉터리
+- lib/: 공통 홈·Bark Note·이동, 고정된 모듈 열기 채널
+- ios/Runner/: 단일 앱 호스트, 네이티브 화면 표시·알림 전달
+- ios/SuperModules/: CareHealthKit와 CryptoResearchKit의 독립 Swift패키지 모듈
+- ios/HealthWidgets/ 및 ios/LiveActivity/: 건강 위젯·활동과 반려/출발 활동 확장
+- assets/models/, ios/HealthResources/: 해시가 고정된 기존 모델 및 라이선스
+- test/, ios/SuperSuiteUITests/: 기존 테스트와 새 화면 전환 검증
+- tool/: 빌드 연결·소스/최종앱 검증; .github/workflows/superapp-ios.yml: macOS 검증·IPA 패키징
 
-OnCare design reference: native bottom tabs, rounded cards, large type and blue accents, iOS26 Liquid Glass controls with older-OS/reduced-transparency fallback. Legacy desktop/Python source remains separate and unchanged.
+## 보존 범위
+온케어 건강·투약·약봉투·개인 기록, Bark Note 녹음/실시간 소리 후보/기록/이동, CryptoResearch 시세/모의전략/HTTPS서버/공통 수동주문 화면 소스를 포함했습니다. 별도 Swift모듈로 같은 이름의 RootView·타입 충돌을 피합니다. 공통 홈은 건강 정보나 소리 기록을 읽어 투자에 사용하지 않습니다. 실제 키·서명·기록·녹음·원본서버실행기는 포함하지 않습니다.
 
-User-operated live trading preparation is supplied separately in operator/ in the local delivery ZIP, not linked to the mobile paper engine. The agent never starts it or calls private order APIs. Never put exchange keys in apps, source, CI, issue/chat or ZIPs. See local operator README for setup and unsupported/unverified boundaries.
+새 bundle ID app.caresuite.super이므로 기존앱sandbox/Keychain을 자동으로 읽지 않습니다. 기존 데이터는 사용자 가져오기·페어링으로, 거래서버는 새 토큰 연결로 사용합니다. 이동 서비스 API키도 복사하지 않으며 미설정 기능은 기존 오류/안내 상태로 남습니다. 건강 읽기·녹음·실주문은 모듈을 선택한 뒤 사용자가 별도로 승인/시작합니다. 소리 분석은 검증된 감정 번역/진단이 아니고 약 일정 일치는 임상 상호작용 판단이 아닙니다.
 
-## 1.2 research analytics
-Additive report schema2 preserves existing mode, fills and summary keys, adds equity_curve/bar_timestamp_ms, structured fill_records, nullable win_rate/profit_factor_net, quote-currency total_fees and explicit truncation/time/currency metadata. CSV final liquidation costs are reflected in the final curve point; algorithm and golden ending equity remain unchanged.
-Native read-only report cards show a curve and latest100 fills, with peak/trough-preserving display sampling. Metrics always use all closed trades, not sampled display points. CSV retains up to50000 curve points; foreground live retains3600, and fills5000. These bounds and undefined ratios are explicit. Live warmup progress shows0..30 closed observed bars.
+## macOS 빌드
+Flutter3.47.7, Xcode26+, Ruby Xcodeproj1.27.0 필요.
+```sh
+flutter pub get
+gem install xcodeproj -v 1.27.0 --no-document --user-install
+ruby tool/add_live_activity.rb
+ruby tool/integrate_native.rb
+python3 tool/verify_superapp.py
+flutter analyze
+flutter test
+dart tool/check_bark_insights.dart
+flutter build ios --release --no-codesign
+python3 tool/verify_superapp.py --app build/ios/iphoneos/Runner.app
+```
+그 뒤 시뮬레이터 통합 UI검사를 통과해야 워크플로가 IPA를 패키징합니다. 무서명 IPA는 본인 계정으로 앱/두 확장/HealthKit 권한에 맞게 재서명해야 합니다. 개별앱의 기존 IPA 검증은 통합본 검증을 대신하지 않습니다. 현재 증거는 validation.json을 확인하세요.
 
-## 1.3 background and Ubuntu server
-Android adds a user-started dataSync foreground service with a persistent stop notification, bounded wake lock, 5h45 session ceiling, Android15 onTimeout cleanup, explicit handoff of an existing paper session and read-only recovery of the last local report. No boot autostart or OS-limit bypass.
-iOS local execution still pauses when backgrounded. Continuous paper execution is moved to the user's Ubuntu LTS server; native clients fetch status/reports and optionally start/pause paper sessions via HTTPS. Tokens use Keychain/Keystore, separate read/control roles, and no redirect forwarding. Only saved matching configurations are polled automatically while the screen is active.
-Server code and Docker/Caddy setup are supplied in background_server/ in the local delivery ZIP, not in this public mobile-build repository. No server deployment, real orders, exchange authentication or power/firewall changes are performed by the agent.
+## 다음 검증 기준
+1. macOS에서 두 Swift패키지/ONNX/두 위젯 확장까지 단일기기앱 빌드 성공.
+2. 시뮬레이터에서 온케어·거래 화면 진입/슈퍼홈 복귀, 강아지 녹음 권한 거절/파일선택, 큰 글씨/VoiceOver 확인.
+3. 실기기에서 수면 녹음↔짖음 녹음 전환 시 오디오 종료, 권한 독립, 투약 알림·위젯 딥링크·저장복원 확인.
+4. 기존앱사용자가 직접 가져오기/재연결하고 결과를 확인. 자동 데이터 합치기나 건강↔거래 데이터 변환 금지.
+5. 실주문 테스트는 사용자 서버와 사용자 확인으로만 수행하고 에이전트는 가짜 전송만 사용.
 
-## Mobile 1.4
-Native read-only server operations center: diagnostics, paginated events, archived paper reports. See docs/CLIENT_1_4_KO.md. Server1.4 required for new operations; existing1.3 control/status remain compatible.
+기술 근거: https://developer.apple.com/documentation/swiftui/uihostingcontroller , https://docs.flutter.dev/platform-integration/ios
 
-## Mobile 1.5
-Android: One UI inspired native design, themes, grouped research workflow, sort/empty states and account reset confirmation. iPhone: preserve OnCare design, add native appearance choice and reset confirmation only. See docs/CLIENT_1_5_KO.md. Server remains1.4, engines/operator unchanged.
 
-## Mobile1.6
-Persist bounded local research/execution drafts, display current paper account summary, export original server report JSON, and filter archived sessions by symbol. Android One UI/iPhone OnCare remain; server stays1.4. See docs/CLIENT_1_6_KO.md.
+## OnCare design and continuity
 
-## Mobile 1.7
-Optional defensive research profile, three-completed-bar re-entry cooldown, EMA spread gate, persisted profile selector and executed-parameter report metadata. Classic remains default. Android One UI and iPhone OnCare styles retained. Server1.4 and operator unchanged. See docs/CLIENT_1_7_KO.md. Mobile1.7 is not the legacy planned v1.7 CVD/order-book engine.
-
-## Mobile 1.8
-Domestic community title research: user-triggered DCinside Bitcoin public list, Coinpan JSON import/original links, 24h/7d and symbol filters, deduplication, expression counts and counts-only export. No author/body/comment collection, trained sentiment claim or trading link. See docs/COMMUNITY_1_8_KO.md. Existing strategy/server/operator remain unchanged.
-
-## Mobile1.9 manual multi-exchange trading
-Unified Binance/BingX/Bithumb/Bitget spot quote/account/manual-limit-order screen through a separate user-operated HTTPS trade bridge. Review expires30s; per-order explicit confirmation; durable at-most-once submission and unresolved-order lock. Exchange keys stay server-side; trade token has a separate vault. Existing paper engines/server and community never trigger real orders. See operator/multiexchange/README_KO.md in the local delivery ZIP. Agent never calls real account/order APIs or enables/deploys live trading.
+OnCare is the shared design baseline: grouped light background #F2F2F7, opaque white content cards with 30-point corners, blue #387DF5, and 20–22-point content padding. Keep glass bounded to navigation. Preserve large text, reduced motion and accessible tap targets. Use ordinary feature names rather than app-launcher language. Native module hosts are reused within the process so returning to the common home does not recreate the module stores or discard the current screen. Do not auto-open permissions or orders. This is navigation continuity, not cross-domain data sharing. Verify native return/re-entry and lifecycle behavior on macOS and a physical device before claiming completion.
