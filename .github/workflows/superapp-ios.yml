@@ -50,14 +50,7 @@ jobs:
           flutter build ios --release --no-codesign --verbose > device-build.log 2>&1 || { tail -160 device-build.log; exit 1; }
           tail -20 device-build.log
           python3 tool/verify_superapp.py --app build/ios/iphoneos/Runner.app
-      - name: Build simulator and test native entry points
-        shell: bash
-        run: |
-          set -euo pipefail
-          flutter build ios --simulator --debug
-          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for rows in d["devices"].values() for x in rows if x.get("isAvailable") and "iPhone" in x["name"]))')
-          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE" -only-testing:SuperSuiteUITests CODE_SIGNING_ALLOWED=NO test | tee native-ui-tests.log
-      - name: Package after successful native tests
+      - name: Package verified device app
         shell: bash
         run: |
           set -euo pipefail
@@ -66,6 +59,19 @@ jobs:
           cd delivery
           zip -qry Care-Suite-0.1.1-unsigned.ipa Payload
           shasum -a 256 Care-Suite-0.1.1-unsigned.ipa > SHA256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Care-Suite-Device-IPA
+          path: delivery/
+          if-no-files-found: error
+      - name: Build simulator and test native entry points
+        timeout-minutes: 15
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter build ios --simulator --debug
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for rows in d["devices"].values() for x in rows if x.get("isAvailable") and "iPhone" in x["name"]))')
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE" -only-testing:SuperSuiteUITests CODE_SIGNING_ALLOWED=NO test | tee native-ui-tests.log
       - uses: actions/cache/save@v4
         if: always() && steps.pods-cache.outputs.cache-hit != 'true'
         with:
