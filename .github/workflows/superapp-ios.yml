@@ -19,29 +19,39 @@ jobs:
           channel: stable
           cache: true
       - name: Resolve and validate source snapshot
+        shell: bash
         run: |
+          set -euo pipefail
           flutter pub get
           python3 tool/verify_superapp.py
           flutter analyze
           flutter test --reporter expanded | tee flutter-tests.log
           dart tool/check_bark_insights.dart
       - name: Integrate native frameworks and widgets
+        shell: bash
         run: |
+          set -euo pipefail
           gem install xcodeproj -v 1.27.0 --no-document --user-install
           ruby tool/add_live_activity.rb
           ruby tool/integrate_native.rb
           xcodebuild -version
       - name: Build one unsigned device app
+        shell: bash
         run: |
+          set -euo pipefail
           flutter build ios --release --no-codesign | tee device-build.log
           python3 tool/verify_superapp.py --app build/ios/iphoneos/Runner.app
       - name: Build simulator and test native entry points
+        shell: bash
         run: |
+          set -euo pipefail
           flutter build ios --simulator --debug
           DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for rows in d["devices"].values() for x in rows if x.get("isAvailable") and "iPhone" in x["name"]))')
           xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE" -only-testing:SuperSuiteUITests CODE_SIGNING_ALLOWED=NO test | tee native-ui-tests.log
       - name: Package after successful native tests
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p delivery/Payload
           ditto build/ios/iphoneos/Runner.app delivery/Payload/Runner.app
           cd delivery

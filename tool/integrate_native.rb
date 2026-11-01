@@ -47,6 +47,11 @@ project.targets.each do |target|
   id=target.name=='Runner' ? 'app.caresuite.super' : target.name=='DepartureWidget' ? 'app.caresuite.super.barklive' : 'app.caresuite.super.healthlive'
   target.build_configurations.each do |config|
     config.build_settings.merge!({'PRODUCT_BUNDLE_IDENTIFIER'=>id,'MARKETING_VERSION'=>'0.1.1','CURRENT_PROJECT_VERSION'=>'2','CODE_SIGNING_ALLOWED'=>'NO','CODE_SIGNING_REQUIRED'=>'NO'})
+    if target.name!='Runner'
+      config.build_settings['PRODUCT_NAME']=target.name
+      config.build_settings['PRODUCT_MODULE_NAME']=target.name
+      config.build_settings['EXECUTABLE_NAME']='$(PRODUCT_NAME)'
+    end
     if target.name=='Runner'
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']='16.0'
       config.build_settings['CODE_SIGN_ENTITLEMENTS']='Runner/CareSuite.entitlements'
