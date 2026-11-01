@@ -1,6 +1,6 @@
 # Project scope after explicit user authorization
 User requested CSV backtests and live paper execution on mobile, plus preparation of auto-trading code for USER operation. This supersedes the earlier blanket ban on implementing execution code.
-Mobile apps remain paper-only and contain no credentials/order APIs. Put user-operated live adapter code only in operator/. Never launch a live runner, send real orders, use private APIs, or activate automation during agent tests. Tests must use fake transports. No credentials or user settings in source/CI. Do not deploy the runner.
+Existing strategy engines remain paper-only. The separately authorized 1.9 manual-order screen may call the HTTPS trade bridge; exchange credentials and live exchange adapters belong only in operator/. Never launch a live runner, send real orders, use private APIs, or activate automation during agent tests. Tests must use fake transports. No credentials or user settings in source/CI. Do not deploy the runner.
 Public endpoints and paper-only defaults remain. Preserve legacy Windows/Python project and original configs unchanged. Mobile spot EMA is a new independent engine: do not claim full v1.1 strategy or v1.7 implementation or numerical equivalence to legacy.
 Native UI follows OnCare design. Require Android build/lint/tests and iOS device build/simulator tests; preserve missing/stale data and lifecycle cancellation. Real fills, profitability and physical-device operation remain separate checks.
 
@@ -9,3 +9,7 @@ User explicitly requested Android background operation and Ubuntu LTS PC/server 
 Client1.4 operations center is read-only. Preserve strict path/cursor/session ID validation and credential snapshot guards. Keep server and operator source local-only.
 
 User clarified Android only uses One UI inspired UI/UX in 1.5. iPhone MUST retain existing OnCare CareCard/CareControl/colors/navigation styling. Use original native components and app-owned vector icons, scalable text, light/dark appearance and reachable actions. Keep iOS native navigation. No Samsung branding/assets/framework claim. Preserve engines, saved credentials, and server/operator behavior.
+
+Community1.8 is title-statistics research only. Never connect it to execution. Keep manual public-page refresh, bounded reads and cancellation; do not bypass blocked sources. Coinpan import is unverified user-supplied data; preserve provenance and synthetic markers. Never collect authors, cookies, credentials, comments or post bodies. No AI sentiment/market-wide opinion claim.
+
+User explicitly authorized real manual orders in1.9, with API guides. Mobile may call only the separate user-operated HTTPS trade bridge after per-order review and confirmation. Keep exchange keys server-side, separate trade tokens from paper tokens, preserve pending review IDs, never auto-retry ambiguous submissions. Agent must NEVER invoke real account/order APIs, enable live settings, deploy/start a live bridge or connect strategy/community to live execution. Keep operator/multiexchange local-only; fake transports only in tests. Existing paper server and engines unchanged.

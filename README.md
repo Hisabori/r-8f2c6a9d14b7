@@ -1,4 +1,4 @@
-# Crypto Research mobile 1.3
+# Crypto Research mobile 1.9
 Native SwiftUI/Java apps with public quotes, mobile CSV backtesting and foreground real-time paper execution. No private API or credentials in mobile binaries.
 
 Mobile strategy MOBILE_PAPER_EMA_SPOT_V2 is independent from the preserved Python v1.6 engine: long-only spot EMA9/21, 30-bar warmup, next-open paper fills, 10% cash allocation including fee, 1.5% stop / 3% target, 5% start-equity loss entry gate, fees/slippage configurable 0..100 bps. These are software defaults, not a recommendation. No full v1.1 multi-factor or v1.7 implementation is claimed.
@@ -28,3 +28,12 @@ Android: One UI inspired native design, themes, grouped research workflow, sort/
 
 ## Mobile1.6
 Persist bounded local research/execution drafts, display current paper account summary, export original server report JSON, and filter archived sessions by symbol. Android One UI/iPhone OnCare remain; server stays1.4. See docs/CLIENT_1_6_KO.md.
+
+## Mobile 1.7
+Optional defensive research profile, three-completed-bar re-entry cooldown, EMA spread gate, persisted profile selector and executed-parameter report metadata. Classic remains default. Android One UI and iPhone OnCare styles retained. Server1.4 and operator unchanged. See docs/CLIENT_1_7_KO.md. Mobile1.7 is not the legacy planned v1.7 CVD/order-book engine.
+
+## Mobile 1.8
+Domestic community title research: user-triggered DCinside Bitcoin public list, Coinpan JSON import/original links, 24h/7d and symbol filters, deduplication, expression counts and counts-only export. No author/body/comment collection, trained sentiment claim or trading link. See docs/COMMUNITY_1_8_KO.md. Existing strategy/server/operator remain unchanged.
+
+## Mobile1.9 manual multi-exchange trading
+Unified Binance/BingX/Bithumb/Bitget spot quote/account/manual-limit-order screen through a separate user-operated HTTPS trade bridge. Review expires30s; per-order explicit confirmation; durable at-most-once submission and unresolved-order lock. Exchange keys stay server-side; trade token has a separate vault. Existing paper engines/server and community never trigger real orders. See operator/multiexchange/README_KO.md in the local delivery ZIP. Agent never calls real account/order APIs or enables/deploys live trading.
