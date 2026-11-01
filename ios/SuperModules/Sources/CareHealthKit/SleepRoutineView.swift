@@ -95,6 +95,12 @@ struct SleepRoutineView: View {
         let mean = recent.reduce(0.0) { $0 + $1.value } / Double(recent.count)
         return "하루 마지막 기록 평균 " + number(mean) + "시간 · \(recent.count)일"
     }
+    private func sleepIntervalLabel(bed: Date, wake: Date, awake: Double) -> String {
+        let start = time(bed)
+        let end = time(wake)
+        let minutes = number(awake)
+        return "\(start) → \(end) · 깨어 있던 시간 \(minutes)분"
+    }
     var recentCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("최근 7일 수면").font(.headline)
@@ -103,7 +109,7 @@ struct SleepRoutineView: View {
             ForEach(Array(recent.suffix(3).reversed())) { entry in
                 VStack(alignment: .leading, spacing: 5) {
                     Text(koreanDate(entry.date) + " · " + number(entry.value) + "시간").font(.subheadline.bold())
-                    if let bed = entry.bedTime, let wake = entry.wakeTime { Text(time(bed) + " → " + time(wake) + " · 깨어 있던 시간 " + number(entry.awakeMinutes ?? 0) + "분").font(.caption).foregroundStyle(.secondary) }
+                    if let bed = entry.bedTime, let wake = entry.wakeTime { Text(sleepIntervalLabel(bed: bed, wake: wake, awake: entry.awakeMinutes ?? 0)).font(.caption).foregroundStyle(.secondary) }
                     Text(entry.sleepAnalysis?.sourceLabel ?? (entry.source == nil ? "직접 입력한 기록" : "Health Connect에서 가져온 기록")).font(.caption2).foregroundStyle(.secondary)
                 }
             }
