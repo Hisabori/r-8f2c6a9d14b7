@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>온케어</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>app.caresuite.super.care</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>caresuite-care</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>swopenapi.seoul.go.kr</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<false/>
+			</dict>
+		</dict>
+	</dict>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>내 기기의 온케어 기록 연결에 Bluetooth를 사용합니다.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>온케어 연결 QR을 읽을 때만 카메라를 사용합니다.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>사용자가 선택한 건강 기록을 Apple 건강에서 읽어 온케어에 표시합니다.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>내 온케어 기기와 개인 거래 서버 연결을 사용합니다.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>현재 위치에서 목적지까지 이동 경로를 확인할 때 사용합니다.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>직접 시작한 수면 소리 측정과 반려견 소리 녹음·분석에만 마이크를 사용합니다. 반려견 녹음은 기기에 저장됩니다.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>moon.zzz.fill</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>수면 루틴</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>app.oncare.open.sleep</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>figure.walk</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>운동 타이머</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>app.oncare.open.workout</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>heart.text.square.fill</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>마음 기록</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>app.oncare.open.mood</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>arrow.triangle.2.circlepath</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>건강 연결</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>app.oncare.open.connect</string>
+		</dict>
+	</array>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+</dict>
+</plist>

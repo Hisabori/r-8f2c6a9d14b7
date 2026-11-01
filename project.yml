@@ -1,0 +1,105 @@
+name: CareSuiteNative
+options:
+  deploymentTarget:
+    iOS: '16.0'
+  fileTypes:
+    onnx:
+      file: true
+      buildPhase: resources
+    tflite:
+      file: true
+      buildPhase: resources
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    TARGETED_DEVICE_FAMILY: '1,2'
+    CODE_SIGNING_ALLOWED: 'NO'
+    CODE_SIGNING_REQUIRED: 'NO'
+    MARKETING_VERSION: '0.2.0'
+    CURRENT_PROJECT_VERSION: '3'
+packages:
+  OnnxRuntime:
+    url: https://github.com/microsoft/onnxruntime-swift-package-manager
+    exactVersion: 1.20.0
+  CryptoResearch:
+    path: Packages/CryptoResearch
+targets:
+  CareSuiteNative:
+    type: application
+    platform: iOS
+    sources: [App, Care, Native]
+    resources:
+      - path: Resources/research-sleep.onnx
+      - path: Resources/yamnet.tflite
+      - path: Resources/yamnet_class_map.csv
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.caresuite.super
+        PRODUCT_NAME: CareSuiteNative
+        CODE_SIGN_ENTITLEMENTS: App/CareSuite.entitlements
+        INFOPLIST_FILE: App/Info.plist
+        GENERATE_INFOPLIST_FILE: 'YES'
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: 'YES'
+        INFOPLIST_KEY_UILaunchScreen_Generation: 'YES'
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    dependencies:
+      - package: OnnxRuntime
+        product: onnxruntime
+      - package: CryptoResearch
+        product: CryptoResearchKit
+      - target: HealthWidgets
+        embed: true
+      - target: DepartureWidget
+        embed: true
+  HealthWidgets:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: '16.2'
+    sources: [HealthWidgets]
+    settings:
+      base:
+        PRODUCT_NAME: HealthWidgets
+        PRODUCT_BUNDLE_IDENTIFIER: app.caresuite.super.healthlive
+        INFOPLIST_FILE: HealthWidgets/Info.plist
+        APPLICATION_EXTENSION_API_ONLY: 'YES'
+        SKIP_INSTALL: 'YES'
+  DepartureWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: '16.2'
+    sources: [DepartureWidget]
+    settings:
+      base:
+        PRODUCT_NAME: DepartureWidget
+        PRODUCT_BUNDLE_IDENTIFIER: app.caresuite.super.barklive
+        INFOPLIST_FILE: DepartureWidget/Info.plist
+        APPLICATION_EXTENSION_API_ONLY: 'YES'
+        SKIP_INSTALL: 'YES'
+  NativeTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests]
+    dependencies:
+      - target: CareSuiteNative
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.caresuite.super.nativetests
+        GENERATE_INFOPLIST_FILE: 'YES'
+  NativeUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: CareSuiteNative
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.caresuite.super.nativeuitests
+        GENERATE_INFOPLIST_FILE: 'YES'
+schemes:
+  CareSuiteNative:
+    build:
+      targets:
+        CareSuiteNative: all
+    test:
+      targets: [NativeTests, NativeUITests]
+      gatherCoverageData: true

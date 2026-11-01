@@ -1,0 +1,58 @@
+import XCTest
+@testable import CareSuiteNative
+
+final class ShortcutTests: XCTestCase {
+    func testWidgetURLsOnlyOpenKnownForms() {
+        for destination in CareDestination.allCases {
+            XCTAssertEqual(CareDestination.parse(destination.url), destination)
+            XCTAssertEqual(CareDestination.parse(quickActionType: destination.quickActionType), destination)
+            XCTAssertNil(URLComponents(url: destination.url, resolvingAgainstBaseURL: false)?.query)
+        }
+        XCTAssertEqual(Set(CareDestination.allCases.map(\.url)).count, 9)
+        let rejected = [
+            "https://open/sleep", "caresuite-care://unknown/sleep", "caresuite-care://open/unknown",
+            "caresuite-care://open/sleep/", "caresuite-care://open/sleep/mood", "caresuite-care://open/%73leep",
+            "caresuite-care://open/../sleep", "caresuite-care://open/sleep?save=true", "caresuite-care://open/connect?token=private",
+            "caresuite-care://open/mood#save", "caresuite-care://user:secret@open/sleep", "caresuite-care://open:8766/sleep",
+            "caresuite-care:open/sleep", "caresuite-care://open/", "caresuite-care://open/workout?start=true",
+            "caresuite-care://open/" + String(repeating: "a", count: 200)
+        ]
+        for text in rejected { if let url = URL(string: text) { XCTAssertNil(CareDestination.parse(url), text) } }
+        for type in ["sleep", "app.oncare.open.unknown", "app.oncare.open.sleep.extra", "app.oncare.open.connect?token=secret"] {
+            XCTAssertNil(CareDestination.parse(quickActionType: type))
+        }
+    }
+    @MainActor func testColdRequestWaitsAndNewestRequestWins() {
+        let router = CareShortcutRouter()
+        router.open(.sleep); let first = router.pending!
+        XCTAssertEqual(first.destination, .sleep)
+        router.open(.workout); let second = router.pending!
+        XCTAssertNotEqual(first.id, second.id)
+        router.complete(first.id)
+        XCTAssertEqual(router.pending, second, "A dismissed older form may not consume the new request")
+        XCTAssertFalse(router.open(URL(string: "caresuite-care://open/connect?token=secret")!))
+        XCTAssertEqual(router.pending, second, "An invalid link must not replace a valid pending action")
+        router.complete(second.id); XCTAssertNil(router.pending)
+        XCTAssertTrue(router.open(quickActionType: CareDestination.mood.quickActionType))
+        XCTAssertEqual(router.pending?.destination, .mood)
+    }
+    @MainActor func testAllShortcutIntentsUseTheSameNavigationQueue() async throws {
+        let router = CareShortcutRouter.shared
+        defer { if let request = router.pending { router.complete(request.id) } }
+        _ = try await OpenCareSleepIntent().perform(); XCTAssertEqual(router.pending?.destination, .sleep)
+        _ = try await OpenCareWorkoutIntent().perform(); XCTAssertEqual(router.pending?.destination, .workout)
+        _ = try await OpenCareMoodIntent().perform(); XCTAssertEqual(router.pending?.destination, .mood)
+        _ = try await OpenCareConnectionIntent().perform(); XCTAssertEqual(router.pending?.destination, .connect)
+        XCTAssertTrue(OpenCareSleepIntent.openAppWhenRun); XCTAssertTrue(OpenCareWorkoutIntent.openAppWhenRun)
+        XCTAssertTrue(OpenCareMoodIntent.openAppWhenRun); XCTAssertTrue(OpenCareConnectionIntent.openAppWhenRun)
+    }
+    @MainActor func testDestinationMappingPreservesExistingForms() {
+        XCTAssertEqual(CareDestination.sleep.sheet, .sleepRoutine)
+        XCTAssertEqual(CareDestination.workout.sheet, .practice)
+        XCTAssertEqual(CareDestination.mood.sheet, .mood)
+        XCTAssertEqual(CareDestination.connect.sheet, .healthConnection)
+        XCTAssertEqual(CareDestination.mood.tab, 1)
+        XCTAssertEqual(CareDestination.sleep.tab, 2)
+    }
+    @MainActor func testDuplicatePendingDestinationKeepsRequestIdentity() { let router = CareShortcutRouter(); router.open(.sleep); let id = router.pending?.id; router.open(.sleep); XCTAssertEqual(router.pending?.id, id); router.open(.workout); XCTAssertNotEqual(router.pending?.id, id) }
+}
