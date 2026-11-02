@@ -93,7 +93,6 @@ private struct TickerResearchContent: View {
         }.background(Color(uiColor:.systemGroupedBackground)).navigationTitle("티커 종합 분석").navigationBarTitleDisplayMode(.inline)
         .onChange(of:ticker) { _ in store.cancel(clear:true) }
         .onChange(of:asset) { _ in store.cancel(clear:true) }
-        .onDisappear { store.cancel() }
         .sheet(isPresented:$showKey,onDismiss:{ keyAvailable = !TickerResearchKey.read().isEmpty }) { ResearchDataKeyView() }
         .fileImporter(isPresented:$importing,allowedContentTypes:[.json]) { result in
             switch result { case .success(let url): if let t = try? ResearchTicker(ticker,asset:asset) { store.loadFile(url,ticker:t,communityOnly:communityOnly) };case .failure:store.message = "파일을 열지 못했습니다." }
@@ -106,7 +105,7 @@ private struct TickerResearchContent: View {
             Picker("자산",selection:$session.researchAsset) { Text("코인 · USDT").tag(ResearchAsset.crypto);Text("미국 주식 · USD").tag(ResearchAsset.stock) }.pickerStyle(.segmented)
             TextField(asset == .crypto ? "BTC 또는 ETHUSDT":"AAPL · MSFT · NVDA",text:$session.researchTicker).textInputAutocapitalization(.characters).autocorrectionDisabled().textFieldStyle(.roundedBorder).accessibilityIdentifier("ticker-symbol")
             Button { do { store.load(try ResearchTicker(ticker,asset:asset)) } catch { store.message = error.localizedDescription } } label: { Label("종합 분석",systemImage:"sparkle.magnifyingglass").frame(maxWidth:.infinity,minHeight:48) }.buttonStyle(.borderedProminent).disabled(store.busy).accessibilityIdentifier("ticker-analyze")
-            if store.busy { ProgressView("자료 확인 중") }
+            if store.busy { ProgressView("자료 확인 중");Button("조회 중단") { store.cancel() }.frame(minHeight:44) }
             Text(store.message).font(.caption).foregroundStyle(.secondary)
             Toggle("잠금 화면에 자료 확인 진행 표시",isOn:$liveStatus).font(.subheadline)
             Button(keyAvailable ? "분석 데이터 연결 관리":"미국 주식·뉴스 데이터 연결") { showKey = true }.frame(minHeight:44)

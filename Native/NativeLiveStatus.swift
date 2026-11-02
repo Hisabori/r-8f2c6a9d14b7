@@ -36,12 +36,14 @@ import UIKit
         petTask = Task {
             await prior?.value
             guard #available(iOS 16.2, *) else { return }
-            for activity in Activity<BarkAnalysisAttributes>.activities {
+            let activities = Activity<BarkAnalysisAttributes>.activities
+            for activity in activities {
                 if let events {
                     var state = activity.content.state;state.signal = "done";state.positive = max(0,events);state.processed = max(0,windows);state.updatedAt = Date()
                     await activity.end(ActivityContent(state:state,staleDate:Date().addingTimeInterval(8)),dismissalPolicy:.after(Date().addingTimeInterval(8)))
                 } else { await activity.end(nil,dismissalPolicy:.immediate) }
             }
+            if !activities.isEmpty { petMessage = events != nil ? "완료 상태를 잠시 표시하고 종료해요.":"진행 표시를 종료했어요." }
         }
     }
     func showTravel(prepareAt: Date,arrival: Date,walkingSeconds: Double) {

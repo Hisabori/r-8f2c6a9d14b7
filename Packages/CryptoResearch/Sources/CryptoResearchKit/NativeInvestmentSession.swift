@@ -24,6 +24,7 @@ public struct NativeResearchDigest: Codable, Equatable {
         market.setForeground(false)
         observation = research.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
     }
+    public func cancelResearch() { research.cancel() }
     public var researchBusy: Bool { research.busy }
     public var researchDigest: NativeResearchDigest? {
         guard let r = research.report else { return nil }

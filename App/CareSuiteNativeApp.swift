@@ -24,7 +24,7 @@ import CryptoResearchKit
                 .task { NativeLiveStatus.shared.recover(petRunning:pets.recording,researchRunning:investment.researchBusy,researchEnabled:researchLive) }
                 .onChange(of:investment.researchBusy) { NativeLiveStatus.shared.research(active:$0 && phase == .active,enabled:researchLive && phase == .active) }
                 .onChange(of:researchLive) { NativeLiveStatus.shared.research(active:investment.researchBusy && phase == .active,enabled:$0 && phase == .active) }
-                .onChange(of:phase) { NativeLiveStatus.shared.research(active:$0 == .active && investment.researchBusy,enabled:researchLive && $0 == .active) }
+                .onChange(of:phase) { if $0 == .background { investment.cancelResearch() };NativeLiveStatus.shared.research(active:$0 == .active && investment.researchBusy,enabled:researchLive && $0 == .active) }
                 .alert("온케어 안내", isPresented: Binding(get: { journal.notice != nil }, set: { if !$0 { journal.notice = nil } })) { Button("확인") { journal.notice = nil } } message: { Text(journal.notice ?? "") }
         }
     }
