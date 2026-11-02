@@ -15,8 +15,8 @@ settings:
     TARGETED_DEVICE_FAMILY: '1,2'
     CODE_SIGNING_ALLOWED: 'NO'
     CODE_SIGNING_REQUIRED: 'NO'
-    MARKETING_VERSION: '0.3.0'
-    CURRENT_PROJECT_VERSION: '4'
+    MARKETING_VERSION: '0.4.0'
+    CURRENT_PROJECT_VERSION: '5'
 packages:
   OnnxRuntime:
     url: https://github.com/microsoft/onnxruntime-swift-package-manager
@@ -31,6 +31,8 @@ targets:
       - path: App
       - path: Care
       - path: Native
+      - path: DepartureWidget/DepartureAttributes.swift
+      - path: DepartureWidget/NativeActivityPolicy.swift
       - path: Resources
         buildPhase: resources
     settings:
@@ -56,7 +58,9 @@ targets:
     type: app-extension
     platform: iOS
     deploymentTarget: '16.2'
-    sources: [HealthWidgets]
+    sources:
+      - path: HealthWidgets
+      - path: DepartureWidget/NativeActivityPolicy.swift
     settings:
       base:
         PRODUCT_NAME: HealthWidgets

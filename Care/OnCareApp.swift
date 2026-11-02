@@ -105,6 +105,8 @@ struct RootView: View {
     @State private var selectedTab = min(4, max(0, UserDefaults.standard.integer(forKey: "app-start-tab")))
     @State private var tabIdentity = UUID()
     @State private var shortcutSheet: CareSheet?
+    @StateObject private var serviceRouter = NativeServiceRouter.shared
+    @State private var serviceSheet: NativeServiceDestination?
     @StateObject private var windowReference = CareWindowReference()
     @State private var windowReady = false
     @EnvironmentObject private var journal: Journal
@@ -123,6 +125,7 @@ struct RootView: View {
         }
         .background(CarePresentationAnchor(reference: windowReference) { if !windowReady { windowReady = true } }.frame(width: 0, height: 0))
         .sheet(item: $shortcutSheet) { SheetContents(sheet: $0) }
+        .sheet(item: $serviceSheet) { NativeServiceSheet(destination:$0) }
         .task(id: scenePhase) { if scenePhase == .active { await medications.refresh() } }
         .task(id: String(describing: medicationNavigation.pending) + String(describing: scenePhase) + String(windowReady) + String(windowReference.generation)) {
             guard scenePhase == .active, windowReady, let request = medicationNavigation.pending, let window = windowReference.window else { return }
@@ -136,6 +139,15 @@ struct RootView: View {
     }
     var body: some View {
         navigationContent
+        .task(id: CareShortcutTaskKey(request:serviceRouter.pending?.id,active:scenePhase == .active,windowReady:windowReady,windowGeneration:windowReference.generation)) {
+            guard scenePhase == .active,windowReady,let request = serviceRouter.pending,let window = windowReference.window else { return }
+            await CareModalDismissal.dismiss(in:window)
+            guard !Task.isCancelled,serviceRouter.pending?.id == request.id else { return }
+            serviceSheet = nil
+            do { try await Task.sleep(nanoseconds:80_000_000) } catch { return }
+            guard !Task.isCancelled,serviceRouter.pending?.id == request.id else { return }
+            serviceSheet = request.destination;serviceRouter.complete(request.id)
+        }
         .task(id: String(describing: scenePhase) + (sync.pair?.peer ?? "") + (sync.pair?.token ?? "")) {
             guard scenePhase == .active, sync.pair != nil else { return }
             while !Task.isCancelled { await sync.sync(journal); do { try await Task.sleep(nanoseconds: 60_000_000_000) } catch { break } }
@@ -170,6 +182,7 @@ struct Dashboard: View {
                     VStack(alignment: .leading, spacing: 8) { Text(koreanDate(Date(), weekday: true)).font(.caption.weight(.semibold)).foregroundStyle(.secondary); Text(deepMind ? "오늘도 네 편이야 ♡" : "오늘도, 나답게").font(.largeTitle.bold()); Text(deepMind ? "약부터 확인하고, 네 속도로 하루를 남겨." : "몸과 마음의 이야기를 만나보세요").font(.subheadline).foregroundStyle(.secondary) }
                     if deepMind { MedicationHomeCard { sheet = .medications } }
                     NativeDailyServices()
+                    WellbeingResearchCard()
                     PersonalCareCard()
                     quickLog
                     pinnedSection

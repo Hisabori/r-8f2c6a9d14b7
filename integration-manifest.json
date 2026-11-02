@@ -1,10 +1,13 @@
 {
-  "version": "0.3.0+4",
+  "version": "0.4.0+5",
   "architecture": "native SwiftUI OnCare root; no Flutter runtime",
   "previous_build": "Care Suite 0.1.1+2",
   "bundle_id": "app.caresuite.super",
   "native_migration_status": "See docs/PARITY.md; not full feature parity",
   "original_apps_modified": false,
   "real_orders_executed": false,
-  "ticker_research": "Crypto USDT and US stocks; closed daily OHLCV; Alpha Vantage key for equities/news; no order integration"
+  "ticker_research": "Crypto USDT and US stocks; closed daily OHLCV; Alpha Vantage key for equities/news; no order integration",
+  "unified_sessions": true,
+  "wellbeing_research": "opt-in protected local diary only; no health data in financial signals or networks",
+  "live_activities": "opt-in pet/research status and manually requested walking preparation snapshot; hardware unverified"
 }

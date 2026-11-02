@@ -25,7 +25,7 @@ extension CareDestination {
 @MainActor final class CareShortcutRouter: ObservableObject {
     static let shared = CareShortcutRouter()
     @Published private(set) var pending: CareRouteRequest?
-    func open(_ destination: CareDestination) { guard pending?.destination != destination else { return }; pending = CareRouteRequest(destination: destination) }
+    func open(_ destination: CareDestination) { if let service = NativeServiceRouter.shared.pending { NativeServiceRouter.shared.complete(service.id) };guard pending?.destination != destination else { return }; pending = CareRouteRequest(destination: destination) }
     @discardableResult func open(_ url: URL) -> Bool {
         guard let destination = CareDestination.parse(url) else { return false }
         open(destination); return true
@@ -83,13 +83,13 @@ struct CareAppShortcuts: AppShortcutsProvider {
 }
 
 @MainActor final class CareShortcutAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool { UNUserNotificationCenter.current().delegate = self; if let url = launchOptions?[.url] as? URL { CareShortcutRouter.shared.open(url) }; return true }
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool { UNUserNotificationCenter.current().delegate = self; if let url = launchOptions?[.url] as? URL { NativeServiceRouter.route(url) }; return true }
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         if response.notification.request.identifier.hasPrefix("oncare-med.") { Task { @MainActor in MedicationNavigation.shared.pending = UUID() } }
         completionHandler()
     }
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) { completionHandler([.banner, .sound]) }
-    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool { CareShortcutRouter.shared.open(url) }
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool { NativeServiceRouter.route(url) }
     func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {
         let configuration = UISceneConfiguration(name: nil, sessionRole: connectingSceneSession.role)
         if connectingSceneSession.role == .windowApplication { configuration.delegateClass = CareShortcutSceneDelegate.self }
@@ -101,11 +101,11 @@ struct CareAppShortcuts: AppShortcutsProvider {
 }
 @MainActor final class CareShortcutSceneDelegate: NSObject, UIWindowSceneDelegate, ObservableObject {
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
-        if let url = connectionOptions.urlContexts.first?.url { CareShortcutRouter.shared.open(url) }
+        if let url = connectionOptions.urlContexts.first?.url { NativeServiceRouter.route(url) }
         if let shortcut = connectionOptions.shortcutItem { CareShortcutRouter.shared.open(quickActionType: shortcut.type) }
     }
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
-        if let url = URLContexts.first?.url { CareShortcutRouter.shared.open(url) }
+        if let url = URLContexts.first?.url { NativeServiceRouter.route(url) }
     }
     func windowScene(_ windowScene: UIWindowScene, performActionFor shortcutItem: UIApplicationShortcutItem, completionHandler: @escaping (Bool) -> Void) {
         completionHandler(CareShortcutRouter.shared.open(quickActionType: shortcutItem.type))

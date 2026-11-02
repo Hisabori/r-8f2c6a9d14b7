@@ -25,3 +25,9 @@ struct BarkAnalysisAttributes: ActivityAttributes {
     }
     var startedAt: Date
 }
+
+@available(iOS 16.2, *)
+struct ResearchStatusAttributes: ActivityAttributes {
+    struct ContentState: Codable, Hashable { var phase: String;var updatedAt: Date }
+    var startedAt: Date
+}

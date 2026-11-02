@@ -9,7 +9,7 @@ import UniformTypeIdentifiers
     private var generation = UUID()
     private var task: Task<Void,Never>?
     private var lastFetch = -Double.infinity
-    func cancel(clear: Bool = false) { generation = UUID();task?.cancel();task = nil;busy = false;if clear { report = nil } }
+    func cancel(clear: Bool = false) { if busy { message = "자료 확인을 중단했습니다. 입력은 유지됩니다." };generation = UUID();task?.cancel();task = nil;busy = false;if clear { report = nil } }
     func load(_ ticker: ResearchTicker) {
         guard ProcessInfo.processInfo.systemUptime-lastFetch >= 60 else { message = "수동 조회는 60초 간격입니다. 공급자 이용 한도를 확인하세요.";return }
         lastFetch = ProcessInfo.processInfo.systemUptime;cancel(clear:true);busy = true;let token = generation
@@ -67,17 +67,24 @@ import UniformTypeIdentifiers
 }
 
 public struct TickerResearchView: View {
-    @StateObject private var store = TickerResearchStore()
-    @State private var asset = ResearchAsset.crypto
-    @State private var ticker = "BTC"
+    @EnvironmentObject private var session: NativeInvestmentSession
+    public init() {}
+    public var body: some View { TickerResearchContent(session:session,store:session.research) }
+}
+
+private struct TickerResearchContent: View {
+    @ObservedObject var session: NativeInvestmentSession
+    @ObservedObject var store: TickerResearchStore
+    @AppStorage("native-research-live") private var liveStatus = false
     @State private var showKey = false
     @State private var keyAvailable = !TickerResearchKey.read().isEmpty
     @State private var importing = false
     @State private var communityOnly = false
     @State private var exporting = false
     @State private var document = JSONDocument(data:Data())
-    public init() {}
-    public var body: some View {
+    private var asset: ResearchAsset { session.researchAsset }
+    private var ticker: String { session.researchTicker }
+    var body: some View {
         ScrollView {
             VStack(alignment:.leading,spacing:18) {
                 controls
@@ -96,11 +103,12 @@ public struct TickerResearchView: View {
     private var controls: some View {
         VStack(alignment:.leading,spacing:14) {
             Text("가격과 이야기, 함께 살펴봐요").font(.title2.bold())
-            Picker("자산",selection:$asset) { Text("코인 · USDT").tag(ResearchAsset.crypto);Text("미국 주식 · USD").tag(ResearchAsset.stock) }.pickerStyle(.segmented)
-            TextField(asset == .crypto ? "BTC 또는 ETHUSDT":"AAPL · MSFT · NVDA",text:$ticker).textInputAutocapitalization(.characters).autocorrectionDisabled().textFieldStyle(.roundedBorder).accessibilityIdentifier("ticker-symbol")
+            Picker("자산",selection:$session.researchAsset) { Text("코인 · USDT").tag(ResearchAsset.crypto);Text("미국 주식 · USD").tag(ResearchAsset.stock) }.pickerStyle(.segmented)
+            TextField(asset == .crypto ? "BTC 또는 ETHUSDT":"AAPL · MSFT · NVDA",text:$session.researchTicker).textInputAutocapitalization(.characters).autocorrectionDisabled().textFieldStyle(.roundedBorder).accessibilityIdentifier("ticker-symbol")
             Button { do { store.load(try ResearchTicker(ticker,asset:asset)) } catch { store.message = error.localizedDescription } } label: { Label("종합 분석",systemImage:"sparkle.magnifyingglass").frame(maxWidth:.infinity,minHeight:48) }.buttonStyle(.borderedProminent).disabled(store.busy).accessibilityIdentifier("ticker-analyze")
             if store.busy { ProgressView("자료 확인 중") }
             Text(store.message).font(.caption).foregroundStyle(.secondary)
+            Toggle("잠금 화면에 자료 확인 진행 표시",isOn:$liveStatus).font(.subheadline)
             Button(keyAvailable ? "분석 데이터 연결 관리":"미국 주식·뉴스 데이터 연결") { showKey = true }.frame(minHeight:44)
             Button("연구 JSON 가져오기") { communityOnly = false;importing = true }.disabled(store.busy)
             Button("커뮤니티 표본 JSON 추가") { communityOnly = true;importing = true }.disabled(store.busy || store.report == nil)

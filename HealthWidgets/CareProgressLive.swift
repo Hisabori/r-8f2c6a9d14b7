@@ -25,7 +25,7 @@ struct CareProgressLive: Widget {
                     }
                 }
             } compactLeading: { Image(systemName: icon(context)).foregroundStyle(tint(context)) }
-            compactTrailing: { if context.isStale { Text("확인").font(.caption) } else if context.attributes.kind == .steps { Text("\(context.state.value)").monospacedDigit() } else { value(context).monospacedDigit().frame(maxWidth: 58) } }
+            compactTrailing: { if context.isStale { Text("확인").font(.caption) } else if context.attributes.kind == .steps { Text(NativeActivityText.compactSteps(context.state.value)).font(.caption2).monospacedDigit().lineLimit(1).minimumScaleFactor(0.8).frame(maxWidth:48).accessibilityLabel("\(context.state.value) 걸음") } else { value(context).monospacedDigit().frame(maxWidth: 58) } }
             minimal: { Image(systemName: icon(context)).foregroundStyle(tint(context)) }
             .widgetURL(destination(context)).keylineTint(tint(context))
         }

@@ -12,6 +12,14 @@ enum NativeTravelPlanning {
 
 @MainActor final class NativeTravelStore: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var query = ""
+    @Published var arrival = Date().addingTimeInterval(3600)
+    @Published var preparation = 10
+    @Published var margin = 5
+    @Published var selected: MKMapItem?
+    private var locationRequested = false
+    private var locationAt: Date?
+    private var estimateAt: Date?
+    private var routeGeneration = UUID()
     @Published private(set) var places: [MKMapItem] = []
     @Published private(set) var searching = false
     @Published private(set) var location: CLLocationCoordinate2D?
@@ -23,6 +31,7 @@ enum NativeTravelPlanning {
     private var generation = UUID()
     override init() { super.init(); manager.delegate = self; manager.desiredAccuracy = kCLLocationAccuracyHundredMeters }
     func locate() {
+        locationRequested = true
         switch manager.authorizationStatus {
         case .notDetermined: manager.requestWhenInUseAuthorization()
         case .authorizedWhenInUse, .authorizedAlways: manager.requestLocation()
@@ -31,20 +40,25 @@ enum NativeTravelPlanning {
     }
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         Task { @MainActor in
-            if [.authorizedWhenInUse, .authorizedAlways].contains(manager.authorizationStatus) { manager.requestLocation() }
+            if self.locationRequested, [.authorizedWhenInUse, .authorizedAlways].contains(manager.authorizationStatus) { manager.requestLocation() }
         }
     }
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let latest = locations.last, abs(latest.timestamp.timeIntervalSinceNow) < 120, latest.horizontalAccuracy >= 0 else { return }
-        Task { @MainActor in self.location = latest.coordinate; self.walkingSeconds = nil }
+        Task { @MainActor in
+            guard self.locationRequested else { return }
+            self.locationRequested = false;self.locationAt = latest.timestamp
+            self.location = latest.coordinate;self.walkingSeconds = nil
+            self.routeGeneration = UUID();self.directions?.cancel()
+        }
     }
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        Task { @MainActor in self.notice = "현재 위치를 확인하지 못했습니다. 잠시 후 다시 시도하세요." }
+        Task { @MainActor in guard self.locationRequested else { return };self.locationRequested = false;self.notice = "현재 위치를 확인하지 못했습니다. 잠시 후 다시 시도하세요." }
     }
     func find() async {
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, text.count <= 200 else { return }
-        search?.cancel(); directions?.cancel(); walkingSeconds = nil; places = []
+        search?.cancel(); routeGeneration = UUID(); directions?.cancel(); walkingSeconds = nil; places = []
         let token = UUID(); generation = token; searching = true
         let request = MKLocalSearch.Request(); request.naturalLanguageQuery = text
         if let location { request.region = MKCoordinateRegion(center: location, latitudinalMeters: 10000, longitudinalMeters: 10000) }
@@ -58,29 +72,31 @@ enum NativeTravelPlanning {
         if generation == token { searching = false }
     }
     func estimate(_ destination: MKMapItem) async {
-        guard let location else { notice = "도보 예상 시간을 보려면 현재 위치를 먼저 확인하세요."; return }
+        guard let location, let locationAt, Date().timeIntervalSince(locationAt) < 120 else { notice = "도보 예상 시간을 보려면 현재 위치를 먼저 확인하세요."; return }
         search?.cancel(); searching = false
         directions?.cancel(); walkingSeconds = nil
-        let token = UUID(); generation = token
+        let token = UUID(); routeGeneration = token; generation = UUID()
         let request = MKDirections.Request()
         request.source = MKMapItem(placemark: MKPlacemark(coordinate: location))
         request.destination = destination; request.transportType = .walking
         let value = MKDirections(request: request); directions = value
         do {
             let response = try await value.calculateETA()
-            guard generation == token else { return }
-            walkingSeconds = response.expectedTravelTime
-        } catch { if generation == token { notice = "도보 경로의 예상 시간을 확인하지 못했습니다." } }
+            guard routeGeneration == token else { return }
+            walkingSeconds = response.expectedTravelTime;estimateAt = Date()
+        } catch { if routeGeneration == token { notice = "도보 경로의 예상 시간을 확인하지 못했습니다." } }
     }
-    func stop() { generation = UUID(); search?.cancel(); directions?.cancel(); searching = false }
+    func expireEstimate() { if estimateAt.map({ Date().timeIntervalSince($0) > 120 }) ?? true { walkingSeconds = nil } }
+    func stop() { manager.stopUpdatingLocation();locationRequested = false;routeGeneration = UUID();generation = UUID(); search?.cancel(); routeGeneration = UUID(); directions?.cancel(); searching = false }
 }
 
 struct NativeTravelView: View {
-    @StateObject private var store = NativeTravelStore()
-    @State private var arrival = Date().addingTimeInterval(3600)
-    @State private var preparation = 10
-    @State private var margin = 5
-    @State private var selected: MKMapItem?
+    @EnvironmentObject private var store: NativeTravelStore
+    @ObservedObject private var activity = NativeLiveStatus.shared
+    private var arrival: Date { store.arrival }
+    private var preparation: Int { store.preparation }
+    private var margin: Int { store.margin }
+    private var selected: MKMapItem? { store.selected }
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
@@ -94,7 +110,7 @@ struct NativeTravelView: View {
                     }.frame(minHeight: 44)
                     if store.searching { ProgressView("목적지를 찾고 있어요") }
                     ForEach(Array(store.places.enumerated()), id: \.offset) { _, place in
-                        Button { selected = place; Task { await store.estimate(place) } } label: {
+                        Button { store.selected = place; Task { await store.estimate(place) } } label: {
                             VStack(alignment: .leading, spacing: 5) {
                                 Text(place.name ?? "목적지").font(.headline)
                                 Text(place.placemark.title ?? "").font(.caption).foregroundStyle(.secondary)
@@ -103,11 +119,14 @@ struct NativeTravelView: View {
                     }
                 }.careCard()
                 VStack(alignment: .leading, spacing: 16) {
-                    DatePicker("도착 희망 시각", selection: $arrival, displayedComponents: [.date, .hourAndMinute])
-                    Stepper("외출 준비 \(preparation)분", value: $preparation, in: 0...120, step: 5)
-                    Stepper("여유 시간 \(margin)분", value: $margin, in: 0...30)
+                    DatePicker("도착 희망 시각", selection: $store.arrival, displayedComponents: [.date, .hourAndMinute])
+                    Stepper("외출 준비 \(preparation)분", value: $store.preparation, in: 0...120, step: 5)
+                    Stepper("여유 시간 \(margin)분", value: $store.margin, in: 0...30)
                     if let seconds = store.walkingSeconds, let start = NativeTravelPlanning.leaveBy(arrival: arrival, travelSeconds: seconds, preparationMinutes: preparation, marginMinutes: margin) {
                         Text("도보 예상 \(Int(ceil(seconds/60)))분").font(.headline)
+                        Button("준비 시각을 잠금 화면에 표시") { NativeLiveStatus.shared.showTravel(prepareAt:start,arrival:arrival,walkingSeconds:seconds) }.frame(minHeight:44)
+                        Button("이동 표시 종료") { NativeLiveStatus.shared.endTravel() }.font(.subheadline)
+                        Text(activity.travelMessage).font(.caption).foregroundStyle(.secondary)
                         Text("준비 시작 \(start.formatted(date: .abbreviated, time: .shortened))").font(.title3.bold())
                         if start < Date() { Text("지금 기준으로 준비 시간이 부족해요.").foregroundStyle(.orange) }
                     }
@@ -120,6 +139,11 @@ struct NativeTravelView: View {
                 }.careCard()
             }.padding(20)
         }.background(CareAppearance.background).navigationTitle("이동 준비").navigationBarTitleDisplayMode(.inline)
+        .onChange(of:arrival) { _ in NativeLiveStatus.shared.endTravel() }
+        .onChange(of:preparation) { _ in NativeLiveStatus.shared.endTravel() }
+        .onChange(of:margin) { _ in NativeLiveStatus.shared.endTravel() }
+        .onChange(of:store.selected.map { ObjectIdentifier($0) }) { _ in NativeLiveStatus.shared.endTravel() }
+        .onAppear { store.expireEstimate() }
         .onDisappear { store.stop() }
         .alert("이동 안내", isPresented: Binding(get: { store.notice != nil }, set: { if !$0 { store.notice = nil } })) { Button("확인") { store.notice = nil } } message: { Text(store.notice ?? "") }
     }

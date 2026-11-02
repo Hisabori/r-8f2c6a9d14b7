@@ -1,7 +1,9 @@
 import SwiftUI
 public struct NativeInvestmentView: View {
-    @StateObject private var store = MarketStore()
+    @EnvironmentObject private var session: NativeInvestmentSession
+    private var store: MarketStore { session.market }
     @Environment(\.scenePhase) private var phase
+    @State private var visible = false
     public init() {}
     public var body: some View {
         ScrollView {
@@ -23,8 +25,8 @@ public struct NativeInvestmentView: View {
         }.background(Color(uiColor: .systemGroupedBackground))
             .navigationTitle("투자와 리서치").navigationBarTitleDisplayMode(.inline)
             .environmentObject(store).tint(.careBlue)
-            .onAppear { store.setForeground(true) }
-            .onDisappear { store.setForeground(false) }
-            .onChange(of: phase) { store.setForeground($0 == .active) }
+            .onAppear { visible = true;store.setForeground(true) }
+            .onDisappear { visible = false;store.setForeground(false) }
+            .onChange(of: phase) { store.setForeground($0 == .active && visible) }
     }
 }

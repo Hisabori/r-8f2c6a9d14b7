@@ -1,5 +1,15 @@
 import XCTest
 final class NativeNavigationTests: XCTestCase {
+    func testPetDraftSurvivesReturningHome() {
+        let app = XCUIApplication();app.launch()
+        let pet = app.buttons["native-pet-open"]
+        XCTAssertTrue(pet.waitForExistence(timeout:20));pet.tap()
+        let name = app.textFields["pet-draft-name"]
+        XCTAssertTrue(name.waitForExistence(timeout:10));name.tap();name.typeText("Lulu")
+        app.navigationBars.buttons.element(boundBy:0).tap()
+        XCTAssertTrue(pet.waitForExistence(timeout:10));pet.tap()
+        XCTAssertEqual(name.value as? String,"Lulu")
+    }
     func testTickerAnalysisSampleIsExplicitlySynthetic() {
         let app = XCUIApplication();app.launch()
         let investment = app.buttons["native-investment-open"]

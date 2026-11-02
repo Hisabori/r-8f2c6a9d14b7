@@ -18,7 +18,10 @@ struct NativePetRecord: Codable, Identifiable {
     @Published private(set) var recording = false
     @Published private(set) var busy = false
     @Published var notice: String?
+    @Published var draftName = ""
+    @Published var draftNote = ""
     private var recorder: AVAudioRecorder?
+    private var recordingStart = Date()
     private var timer: Timer?
     private var healthyStorage = true
     private let folder: URL
@@ -46,11 +49,13 @@ struct NativePetRecord: Codable, Identifiable {
             let value = try AVAudioRecorder(url: url, settings: [AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: 16000, AVNumberOfChannelsKey: 1, AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue])
             value.delegate = self
             guard value.record() else { throw PetSoundError.invalidAudio }
-            recorder = value; recording = true
+            recorder = value; recordingStart = Date();recording = true
+            NativeLiveStatus.shared.petRecording(start:recordingStart,elapsed:0)
             timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
                 Task { @MainActor in
                     guard let self, let recorder = self.recorder else { return }
                     if recorder.currentTime >= 60 { self.stop() }
+                    else if Int(recorder.currentTime) % 5 == 0 { NativeLiveStatus.shared.petRecording(start:self.recordingStart,elapsed:Int(recorder.currentTime)) }
                 }
             }
         } catch { cleanup(); notice = error.localizedDescription }
@@ -58,6 +63,7 @@ struct NativePetRecord: Codable, Identifiable {
     func stop() { guard recording else { return }; recorder?.stop(); cleanup() }
     private func cleanup() {
         timer?.invalidate(); timer = nil; recording = false
+        NativeLiveStatus.shared.endPet()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
     nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
@@ -73,6 +79,7 @@ struct NativePetRecord: Codable, Identifiable {
     func analyze(_ source: URL, name: String, note: String) async {
         guard !busy, !recording, healthyStorage else { return }
         busy = true
+        NativeLiveStatus.shared.petProcessing()
         defer { busy = false }
         var staged: URL?
         do {
@@ -88,16 +95,19 @@ struct NativePetRecord: Codable, Identifiable {
             var updated = records; updated.insert(record, at: 0)
             try JSONEncoder().encode(updated).write(to: folder.appendingPathComponent("records.json"), options: [.atomic, .completeFileProtection])
             records = updated; lastRecording = nil
+            NativeLiveStatus.shared.endPet(events:record.summary?.eventCount ?? 0,windows:record.windows.count)
             notice = "분석과 저장을 마쳤습니다. 모델 점수는 정확도나 감정 확률이 아닙니다."
-        } catch { if let staged { try? FileManager.default.removeItem(at: staged) }; notice = error.localizedDescription }
+        } catch { NativeLiveStatus.shared.endPet();if let staged { try? FileManager.default.removeItem(at: staged) }; notice = error.localizedDescription }
     }
 }
 
 struct NativePetView: View {
-    @StateObject private var store = NativePetStore()
+    @EnvironmentObject private var store: NativePetStore
     @State private var importer = false
-    @State private var name = ""
-    @State private var note = ""
+    @AppStorage("native-pet-live") private var live = false
+    @ObservedObject private var activity = NativeLiveStatus.shared
+    private var name: String { store.draftName }
+    private var note: String { store.draftNote }
     @Environment(\.scenePhase) private var phase
     var body: some View {
         ScrollView {
@@ -107,8 +117,10 @@ struct NativePetView: View {
                     Text("녹음하거나 오디오 파일을 가져와 짖음 후보의 흐름을 살펴보세요.").foregroundStyle(.secondary)
                 }
                 VStack(alignment: .leading, spacing: 16) {
-                    TextField("강아지 이름", text: $name).textFieldStyle(.roundedBorder)
-                    TextField("어떤 상황이었나요?", text: $note, axis: .vertical).textFieldStyle(.roundedBorder)
+                    Toggle("잠금 화면에 녹음·분석 진행 표시",isOn:$live).font(.subheadline)
+                    Text(activity.petMessage).font(.caption).foregroundStyle(.secondary)
+                    TextField("강아지 이름", text: $store.draftName).textFieldStyle(.roundedBorder).accessibilityIdentifier("pet-draft-name")
+                    TextField("어떤 상황이었나요?", text: $store.draftNote, axis: .vertical).textFieldStyle(.roundedBorder)
                     Button { if store.recording { store.stop() } else { Task { await store.start() } } } label: {
                         Label(store.recording ? "녹음 종료" : "녹음 시작 · 최대 60초", systemImage: store.recording ? "stop.circle.fill" : "mic.fill").frame(maxWidth: .infinity, minHeight: 44)
                     }.buttonStyle(.borderedProminent).disabled(store.busy).accessibilityIdentifier("native-pet-record")
@@ -141,6 +153,7 @@ struct NativePetView: View {
             }
         }
         .alert("반려생활 안내", isPresented: Binding(get: { store.notice != nil }, set: { if !$0 { store.notice = nil } })) { Button("확인") { store.notice = nil } } message: { Text(store.notice ?? "") }
+        .onChange(of:live) { if !$0 { NativeLiveStatus.shared.endPet() } }
         .onDisappear { store.stop() }
         .onChange(of: phase) { if $0 != .active { store.stop() } }
     }
