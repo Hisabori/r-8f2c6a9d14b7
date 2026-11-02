@@ -63,7 +63,8 @@ struct NativePetRecord: Codable, Identifiable {
     nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
         let url = recorder.url
         Task { @MainActor in
-            self.cleanup()
+            guard self.recorder?.url == url else { return }
+            if self.recording { self.cleanup() }
             guard flag else { self.notice = "녹음을 완료하지 못했습니다."; return }
             self.lastRecording = url
         }

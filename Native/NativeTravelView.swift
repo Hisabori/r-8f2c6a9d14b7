@@ -44,7 +44,7 @@ enum NativeTravelPlanning {
     func find() async {
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, text.count <= 200 else { return }
-        search?.cancel(); directions?.cancel(); walkingSeconds = nil
+        search?.cancel(); directions?.cancel(); walkingSeconds = nil; places = []
         let token = UUID(); generation = token; searching = true
         let request = MKLocalSearch.Request(); request.naturalLanguageQuery = text
         if let location { request.region = MKCoordinateRegion(center: location, latitudinalMeters: 10000, longitudinalMeters: 10000) }
@@ -59,6 +59,7 @@ enum NativeTravelPlanning {
     }
     func estimate(_ destination: MKMapItem) async {
         guard let location else { notice = "도보 예상 시간을 보려면 현재 위치를 먼저 확인하세요."; return }
+        search?.cancel(); searching = false
         directions?.cancel(); walkingSeconds = nil
         let token = UUID(); generation = token
         let request = MKDirections.Request()
