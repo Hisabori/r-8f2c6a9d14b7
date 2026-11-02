@@ -114,6 +114,7 @@ struct TickerResearchService {
                 guard !key.isEmpty else { throw ResearchFailure.missingKey }
                 bars = try TickerResearchParsing.equities(await fetch(Self.url("www.alphavantage.co",path:"/query",query:["function":"TIME_SERIES_DAILY","symbol":ticker.symbol,"outputsize":"compact","apikey":key])),ticker:ticker,now:now)
             }
+            guard !bars.isEmpty,bars.allSatisfy(\.valid),zip(bars,bars.dropFirst()).allSatisfy({$0.0.time < $0.1.time}) else { bars = [];throw ResearchFailure.invalidData }
         } catch is CancellationError { throw CancellationError() } catch { notices.append("가격·거래량: \((error as? ResearchFailure)?.localizedDescription ?? "조회 실패")") }
         try Task.checkCancellation()
         if key.isEmpty { notices.append("뉴스: 분석 데이터 키 미설정 · 제외") }

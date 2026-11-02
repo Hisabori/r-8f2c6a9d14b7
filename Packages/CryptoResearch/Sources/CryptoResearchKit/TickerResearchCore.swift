@@ -122,9 +122,22 @@ enum TickerResearchMath {
         for item in items { let t = item.title.lowercased(),u = up.contains { contains(t,$0) },d = down.contains { contains(t,$0) }; if u && d { mixed += 1 } else if u { positive += 1 } else if d { negative += 1 } }
         return ResearchTextSummary(items:items,positive:positive,negative:negative,mixed:mixed)
     }
+    static func mentions(_ title: String,ticker: ResearchTicker) -> Bool {
+        var terms = [ticker.base.lowercased()]
+        let stocks = ["AAPL":["apple","애플"],"MSFT":["microsoft","마이크로소프트"],"NVDA":["nvidia","엔비디아"],"TSLA":["tesla","테슬라"],"AMZN":["amazon","아마존"],"GOOGL":["google","alphabet","구글"],"GOOG":["google","alphabet","구글"],"META":["facebook","메타"],"IBM":["ibm"]]
+        if ticker.asset == .stock { terms += stocks[ticker.symbol] ?? [] }
+        else if let index = CommunityCore.symbols.dropFirst().firstIndex(of:ticker.base) { terms += CommunityCore.aliases[index-1] }
+        let text = title.lowercased()
+        return terms.contains { term in
+            if term.range(of:"^[a-z0-9.-]+$",options:.regularExpression) != nil {
+                return text.range(of:"(?<![a-z0-9])"+NSRegularExpression.escapedPattern(for:term)+"(?![a-z0-9])",options:.regularExpression) != nil
+            }
+            return text.contains(term)
+        }
+    }
     static func report(ticker: ResearchTicker, bars: [ResearchBar], news: [ResearchHeadline], community: [ResearchHeadline], now: Date, source: String, synthetic: Bool = false, imported: Bool = false, notices: [String] = []) throws -> ResearchReport {
         guard bars.count <= 1000, bars.allSatisfy(\.valid), zip(bars,bars.dropFirst()).allSatisfy({$0.0.time < $0.1.time}), bars.allSatisfy({$0.time <= now}) else { throw ResearchFailure.invalidData }
-        let n = textSummary(news,now:now),c = textSummary(community,now:now)
+        let n = textSummary(news,now:now),c = textSummary(community.filter { mentions($0.title,ticker:ticker) },now:now)
         let stale = bars.last.map { now.timeIntervalSince($0.time) > (ticker.asset == .crypto ? 2:7)*86400 } ?? true
         let m = metrics(bars)
         let possibleCorporateAction = ticker.asset == .stock && abs(m?.changePercent ?? 0) >= 25

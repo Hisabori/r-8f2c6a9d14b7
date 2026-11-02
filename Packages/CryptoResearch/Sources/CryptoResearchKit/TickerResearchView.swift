@@ -118,7 +118,7 @@ public struct TickerResearchView: View {
             if let score = r.score { Text(String(format:"규칙 점수 %+.0f / ±100",score)).monospacedDigit() }
             Text("입력 충족도 \(r.coverage)% · 정확도·상승 확률이 아님").font(.subheadline)
             Text(r.source).font(.caption).foregroundStyle(.secondary)
-            Text("분석 시각 "+r.fetched.formatted(date:.abbreviated,time:.standard)).font(.caption).foregroundStyle(.secondary)
+            Text("수동 분석 스냅샷 · "+r.fetched.formatted(date:.abbreviated,time:.standard)).font(.caption).foregroundStyle(.secondary)
             Text("상관된 지표를 더한 연구용 규칙입니다. 가격 예측·매수/매도 권고·자동 주문 신호가 아닙니다.").font(.caption).foregroundStyle(.secondary)
         }.modifier(CareCard())
     }
@@ -159,7 +159,7 @@ public struct TickerResearchView: View {
     }
     private func headlines(_ title: String,_ summary: ResearchTextSummary,synthetic: Bool) -> some View {
         VStack(alignment:.leading,spacing:12) {
-            Text(title+" · 최근 7일 제목 \(summary.items.count)개").font(.headline)
+            Text(title+" · 분석 시각 기준 7일 제목 \(summary.items.count)개").font(.headline)
             Text("상승 표현 \(summary.positive) · 하락 표현 \(summary.negative) · 혼합 \(summary.mixed)").font(.caption).foregroundStyle(.secondary)
             if summary.items.isEmpty { Text("유효 표본 없음 · 중립 여론으로 해석하지 않습니다.").foregroundStyle(.secondary) }
             ForEach(Array(summary.items.prefix(15))) { item in

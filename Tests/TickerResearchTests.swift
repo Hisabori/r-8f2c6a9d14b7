@@ -121,11 +121,37 @@ final class TickerResearchTests: XCTestCase {
         XCTAssertEqual(news.count,1)
         XCTAssertEqual(news[0].title,"Apple rally")
     }
+    func testCommunityIsFilteredByTickerOrKnownCompanyName() throws {
+        let aapl = try ResearchTicker("AAPL",asset:.stock)
+        XCTAssertTrue(TickerResearchMath.mentions("Apple rally",ticker:aapl))
+        XCTAssertTrue(TickerResearchMath.mentions("애플 상승",ticker:aapl))
+        XCTAssertFalse(TickerResearchMath.mentions("TSLA rally",ticker:aapl))
+        XCTAssertFalse(TickerResearchMath.mentions("pineapple rally",ticker:aapl))
+        let posts = (0..<3).map { ResearchHeadline(source:"Fixture",title:"TSLA rally \($0)",url:"https://example.com/\($0)",time:now) }
+        let r = try TickerResearchMath.report(ticker:aapl,bars:bars(),news:[],community:posts,now:now,source:"Fixture")
+        XCTAssertEqual(r.community.items.count,0)
+        XCTAssertEqual(r.coverage,90)
+    }
     func testResearchImportRequiresMatchingAssetAndClosedBars() throws {
         let input: [String:Any] = ["research_schema_version":1,"asset":"crypto","symbol":"BTCUSDT","synthetic":false,"bars":[["time":"2025-01-01T00:00:00Z","open":100,"high":102,"low":98,"close":101,"volume":1000,"closed":false]],"news":[],"community":[]]
         let data = try JSONSerialization.data(withJSONObject:input)
         XCTAssertThrowsError(try TickerResearchParsing.imported(data,ticker:ResearchTicker("BTC",asset:.crypto),now:now))
         XCTAssertThrowsError(try TickerResearchParsing.imported(data,ticker:ResearchTicker("ETH",asset:.crypto),now:now))
+    }
+    func testMalformedMarketDataDoesNotEraseNews() async throws {
+        let service = TickerResearchService(fetch:{ url in
+            let function = URLComponents(url:url,resolvingAgainstBaseURL:false)?.queryItems?.first { $0.name == "function" }?.value
+            if function == "TIME_SERIES_DAILY" {
+                return Data("{\"Meta Data\":{\"2. Symbol\":\"AAPL\",\"5. Time Zone\":\"US/Eastern\"},\"Time Series (Daily)\":{\"2025-06-01\":{\"1. open\":\"100\",\"2. high\":\"50\",\"3. low\":\"90\",\"4. close\":\"100\",\"5. volume\":\"1000\"}}}".utf8)
+            }
+            let feed = (0..<3).map { ["title":"AAPL rally \($0)","url":"https://example.com/\($0)","source":"Fixture","time_published":"20250614T120000","ticker_sentiment":[["ticker":"AAPL","relevance_score":"0.9"]]] as [String:Any] }
+            return try JSONSerialization.data(withJSONObject:["feed":feed])
+        })
+        let result = try await service.analyze(ResearchTicker("AAPL",asset:.stock),key:"fixture-key",now:now)
+        XCTAssertTrue(result.bars.isEmpty)
+        XCTAssertNil(result.metrics)
+        XCTAssertNil(result.score)
+        XCTAssertEqual(result.news.items.count,3)
     }
     func testPartialProviderFailurePreservesOtherEvidence() async throws {
         let now = self.now
