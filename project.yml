@@ -27,11 +27,12 @@ targets:
   CareSuiteNative:
     type: application
     platform: iOS
-    sources: [App, Care, Native]
-    resources:
-      - path: Resources/research-sleep.onnx
-      - path: Resources/yamnet.tflite
-      - path: Resources/yamnet_class_map.csv
+    sources:
+      - path: App
+      - path: Care
+      - path: Native
+      - path: Resources
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.caresuite.super
