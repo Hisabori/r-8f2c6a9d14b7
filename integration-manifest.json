@@ -1,1 +1,10 @@
-{"version":"0.2.0+3","architecture":"native SwiftUI OnCare root; no Flutter runtime","previous_build":"Care Suite 0.1.1+2","bundle_id":"app.caresuite.super","native_migration_status":"See docs/PARITY.md; not full feature parity","original_apps_modified":false,"real_orders_executed":false}
+{
+  "version": "0.3.0+4",
+  "architecture": "native SwiftUI OnCare root; no Flutter runtime",
+  "previous_build": "Care Suite 0.1.1+2",
+  "bundle_id": "app.caresuite.super",
+  "native_migration_status": "See docs/PARITY.md; not full feature parity",
+  "original_apps_modified": false,
+  "real_orders_executed": false,
+  "ticker_research": "Crypto USDT and US stocks; closed daily OHLCV; Alpha Vantage key for equities/news; no order integration"
+}

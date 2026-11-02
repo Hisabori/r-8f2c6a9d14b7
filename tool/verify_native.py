@@ -14,7 +14,7 @@ if args.app:
     app=args.app
     info=plistlib.loads((app/'Info.plist').read_bytes())
     assert info['CFBundleIdentifier']=='app.caresuite.super'
-    assert info['CFBundleShortVersionString']=='0.2.0' and info['CFBundleVersion']=='3'
+    assert info['CFBundleShortVersionString']=='0.3.0' and info['CFBundleVersion']=='4'
     executable=app/info['CFBundleExecutable']
     magic,cpu=struct.unpack('<II',executable.read_bytes()[:8])
     assert magic==0xfeedfacf and cpu==0x100000c

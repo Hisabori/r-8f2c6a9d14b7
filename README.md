@@ -1,4 +1,4 @@
-# 온케어 네이티브 재설계 0.2.0
+# 온케어 네이티브 재설계 0.3.0
 
 기존 온케어 SwiftUI 앱을 중심으로 다시 구성한 iPhone 프로젝트입니다. Flutter 실행부·Dart 코드·플랫폼 채널을 포함하지 않습니다. 기존 Flutter 통합 IPA와 원본 세 프로젝트는 보존합니다.
 
@@ -30,3 +30,8 @@ xcodebuild -workspace CareSuiteNative.xcworkspace -scheme CareSuiteNative -desti
 실제 설치된 시뮬레이터 이름으로 바꿔 실행합니다. GitHub workflow는 사용 가능한 iPhone을 자동 선택합니다. 무서명 IPA 설치에는 앱·HealthKit·두 확장에 맞는 사용자 재서명이 필요합니다. 실물 기기의 오디오 전환·권한·딥링크·서버 연결 검증은 별도입니다.
 
 동일 bundle ID `app.caresuite.super`를 사용하므로 기존 통합본을 대체 설치할 수 있습니다. 설치 전 기존 앱에서 사용자 기록을 내보내 보관하세요. 건강·거래 저장 경로와 Keychain 이름은 유지하지만, 기존 Flutter 반려 기록을 자동 변환했다고 주장하지 않습니다.
+
+
+## 코인·미국 주식 티커 분석
+
+투자와 리서치 → 코인·미국 주식 티커 분석. 코인은 Binance 공개 USDT 확정 일봉, 미국 주식은 Alpha Vantage 일봉을 사용합니다. 미국 주식·뉴스는 사용자가 화면에서 데이터 키를 등록해야 하며 거래소 주문 키와 분리합니다. 키 없이도 코인 가격·지표를 조회하거나 연구 JSON을 가져올 수 있습니다. 자세한 계산·가중치·스키마·공급자 제약은 docs/TICKER_RESEARCH.md를 확인하세요.

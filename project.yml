@@ -15,8 +15,8 @@ settings:
     TARGETED_DEVICE_FAMILY: '1,2'
     CODE_SIGNING_ALLOWED: 'NO'
     CODE_SIGNING_REQUIRED: 'NO'
-    MARKETING_VERSION: '0.2.0'
-    CURRENT_PROJECT_VERSION: '3'
+    MARKETING_VERSION: '0.3.0'
+    CURRENT_PROJECT_VERSION: '4'
 packages:
   OnnxRuntime:
     url: https://github.com/microsoft/onnxruntime-swift-package-manager
@@ -82,6 +82,8 @@ targets:
     sources: [Tests]
     dependencies:
       - target: CareSuiteNative
+      - package: CryptoResearch
+        product: CryptoResearchKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.caresuite.super.nativetests
