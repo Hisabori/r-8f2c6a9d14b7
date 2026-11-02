@@ -97,13 +97,22 @@ final class TickerResearchTests: XCTestCase {
         XCTAssertEqual(parsed[0].close,101)
     }
     func testStockParserChecksSymbolAndUSSessionClose() throws {
-        let input: [String:Any] = ["Meta Data":["2. Symbol":"AAPL"],"Time Series (Daily)":["2025-06-16":["1. open":"100","2. high":"102","3. low":"98","4. close":"101","5. volume":"1000"]]]
+        let input: [String:Any] = ["Meta Data":["2. Symbol":"AAPL","5. Time Zone":"US/Eastern"],"Time Series (Daily)":["2025-06-16":["1. open":"100","2. high":"102","3. low":"98","4. close":"101","5. volume":"1000"]]]
         let data = try JSONSerialization.data(withJSONObject:input)
         let early = ISO8601DateFormatter().date(from:"2025-06-16T19:59:00Z")!
         let closed = ISO8601DateFormatter().date(from:"2025-06-16T20:01:00Z")!
         XCTAssertEqual(try TickerResearchParsing.equities(data,ticker:ResearchTicker("AAPL",asset:.stock),now:early).count,0)
         XCTAssertEqual(try TickerResearchParsing.equities(data,ticker:ResearchTicker("AAPL",asset:.stock),now:closed).count,1)
         XCTAssertThrowsError(try TickerResearchParsing.equities(data,ticker:ResearchTicker("MSFT",asset:.stock),now:closed))
+    }
+    func testStockDiscontinuitySuppressesCompositeUntilCorporateActionReview() throws {
+        var values = bars(flat:true)
+        let last = values.removeLast()
+        values.append(ResearchBar(time:last.time,open:49,high:52,low:48,close:50,volume:100))
+        let r = try TickerResearchMath.report(ticker:ResearchTicker("AAPL",asset:.stock),bars:values,news:[],community:[],now:now,source:"Fixture")
+        XCTAssertNotNil(r.metrics)
+        XCTAssertNil(r.score)
+        XCTAssertTrue(r.notices.contains { $0.contains("기업행사·원본") })
     }
     func testProviderErrorsAndNewsTickerRelevance() throws {
         XCTAssertThrowsError(try TickerResearchParsing.object(Data("{\"Note\":\"limit\"}".utf8)))

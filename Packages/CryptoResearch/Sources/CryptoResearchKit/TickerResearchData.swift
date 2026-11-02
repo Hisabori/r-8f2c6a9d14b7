@@ -44,6 +44,7 @@ enum TickerResearchParsing {
     static func equities(_ data: Data, ticker: ResearchTicker, now: Date) throws -> [ResearchBar] {
         let input = try object(data)
         guard let meta = input["Meta Data"] as? [String:Any],let symbol = meta["2. Symbol"] as? String,symbol.uppercased() == ticker.symbol,
+              let zone = meta["5. Time Zone"] as? String,["US/Eastern","America/New_York"].contains(zone),
               let raw = input["Time Series (Daily)"] as? [String:[String:String]],raw.count <= 1000 else { throw ResearchFailure.invalidData }
         let date = DateFormatter(); date.locale = Locale(identifier:"en_US_POSIX");date.timeZone = TimeZone(identifier:"America/New_York");date.dateFormat = "yyyy-MM-dd HH:mm:ss";date.isLenient = false
         var bars: [ResearchBar] = []

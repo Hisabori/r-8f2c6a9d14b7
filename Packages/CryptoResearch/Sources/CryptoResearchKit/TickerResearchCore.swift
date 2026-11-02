@@ -127,6 +127,7 @@ enum TickerResearchMath {
         let n = textSummary(news,now:now),c = textSummary(community,now:now)
         let stale = bars.last.map { now.timeIntervalSince($0.time) > (ticker.asset == .crypto ? 2:7)*86400 } ?? true
         let m = metrics(bars)
+        let possibleCorporateAction = ticker.asset == .stock && abs(m?.changePercent ?? 0) >= 25
         var score = 0.0,coverage = 0,reasons: [String] = [],anomalies: [String] = [],warnings = notices
         if let m, let last = bars.last {
             let epsilon = max(abs(last.close)*1e-10,1e-18)
@@ -146,9 +147,10 @@ enum TickerResearchMath {
         } else { warnings.append("지표·종합 판정에는 유효한 확정 일봉 60개 이상이 필요합니다.") }
         if let d = n.direction { score += d*5; coverage += 5 } else { warnings.append("뉴스 제목 유효 표본 3개 미만 · 뉴스 점수 제외") }
         if let d = c.direction { score += d*5; coverage += 5 } else { warnings.append("커뮤니티 제목 유효 표본 3개 미만 · 커뮤니티 점수 제외") }
+        if possibleCorporateAction { warnings.append("미조정 주가가 하루 25% 이상 변했습니다. 기업행사·원본 데이터 확인 전 종합 판정을 보류합니다.") }
         if stale { warnings.append("최근 확정 일봉이 오래됐습니다. 종합 판정을 보류합니다.") }
         if imported { warnings.append("가져온 파일의 출처·완전성은 검증되지 않았습니다.") }
         if synthetic { warnings.append("합성 예제입니다. 실제 시장의 분석이나 시그널이 아닙니다.") }
-        return ResearchReport(ticker:ticker,bars:bars,fetched:now,source:source,synthetic:synthetic,imported:imported,stale:stale,metrics:m,news:n,community:c,score:m != nil && !stale && !synthetic ? max(-100,min(100,score)):nil,coverage:coverage,reasons:reasons,anomalies:anomalies,notices:warnings)
+        return ResearchReport(ticker:ticker,bars:bars,fetched:now,source:source,synthetic:synthetic,imported:imported,stale:stale,metrics:m,news:n,community:c,score:m != nil && !stale && !synthetic && !possibleCorporateAction ? max(-100,min(100,score)):nil,coverage:coverage,reasons:reasons,anomalies:anomalies,notices:warnings)
     }
 }
