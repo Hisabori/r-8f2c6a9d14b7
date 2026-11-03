@@ -29,7 +29,7 @@ jobs:
           mkdir -p delivery/Payload
           ditto "$APP" delivery/Payload/CareSuiteNative.app
           cd delivery
-          zip -qry OnCare-Native-0.4.0-unsigned.ipa Payload
+          zip -qry OnCare-Native-0.4.1-unsigned.ipa Payload
           shasum -a 256 *.ipa > SHA256.txt
       - uses: actions/upload-artifact@v4
         with:
