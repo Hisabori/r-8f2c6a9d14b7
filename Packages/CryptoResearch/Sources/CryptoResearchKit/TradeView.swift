@@ -116,6 +116,10 @@ private struct SpotScenarioView: View {
      TextField(labels[index],text:$fields[index]).keyboardType(.decimalPad)
     }
    }
+   Section("빠른 입력") {
+    Button("가상 예제 채우기") { fields = ["100", "95", "110", "25", "0.1"] }
+    Button("입력 초기화") { fields = ["", "", "", "", "0"] }
+   }
    Section("시나리오") {
     Text(summary).textSelection(.enabled)
     Text("가정 계산입니다. 슬리피지·잔고·최소 주문 단위는 별도입니다.").font(.caption)
@@ -123,11 +127,12 @@ private struct SpotScenarioView: View {
   }.navigationTitle("현물 매수 전략")
  }
  private var summary: String {
-  let formatter = NumberFormatter()
-  formatter.locale = .current
-  formatter.numberStyle = .decimal
-  formatter.allowsFloats = true
-  let v = fields.map { formatter.number(from:$0)?.doubleValue ?? .nan }
+  let v = fields.map { field -> Double in
+   let raw = field.trimmingCharacters(in:.whitespacesAndNewlines)
+   guard raw.range(of:#"\A[0-9]{1,15}(?:[.,][0-9]{1,12})?\z"#,
+                   options:.regularExpression) != nil else { return .nan }
+   return Double(raw.replacingOccurrences(of:",",with:".")) ?? .nan
+  }
   let entry = v[0], stop = v[1], target = v[2], budget = v[3], fee = v[4] / 100
   guard v.allSatisfy({ $0.isFinite }), stop > 0, entry > stop, target > entry,
         budget > 0, fee >= 0, fee <= 0.1 else {
@@ -136,8 +141,17 @@ private struct SpotScenarioView: View {
   let loss = entry - stop + fee * (entry + stop)
   let quantity = budget / loss
   let cost = quantity * entry * (1 + fee)
-  let ratio = (target - entry - fee * (entry + target)) / loss
-  guard quantity.isFinite, cost.isFinite, ratio.isFinite else { return "입력 범위를 확인하세요." }
-  return "가정 수량 \(quantity.formatted(.number.precision(.significantDigits(1...8)))) \(symbol)\n필요 자금 \(cost.formatted(.number.precision(.significantDigits(1...8)))) \(currency)\n손익비 \(ratio.formatted(.number.precision(.fractionLength(2))))배"
+  let targetGain = quantity * (target - entry - fee * (entry + target))
+  let breakEven = entry * (1 + fee) / (1 - fee)
+  let ratio = targetGain / budget
+  guard quantity > 0, quantity.isFinite, cost.isFinite, ratio.isFinite, targetGain.isFinite, breakEven.isFinite else { return "입력 범위를 확인하세요." }
+  let format = FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...8))
+  return [
+   "가정 수량  \(quantity.formatted(format)) \(symbol)",
+   "필요 자금  \(cost.formatted(format)) \(currency)",
+   "목표 도달 시 손익  \(targetGain.formatted(format)) \(currency)",
+   "손익분기 매도가  \(breakEven.formatted(format)) \(currency)",
+   "수수료 반영 손익비  \(ratio.formatted(format))배"
+  ].joined(separator:"\n")
  }
 }
