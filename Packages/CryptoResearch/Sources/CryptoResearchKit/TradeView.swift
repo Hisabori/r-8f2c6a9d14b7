@@ -121,12 +121,21 @@ private struct SpotScenarioView: View {
     Button("입력 초기화") { fields = ["", "", "", "", "0"] }
    }
    Section("시나리오") {
-    Text(summary).textSelection(.enabled)
+    if let outcomes {
+     ForEach(outcomes.indices,id:\.self) { index in
+      LabeledContent(outcomes[index].label) {
+       Text(outcomes[index].value).monospacedDigit().textSelection(.enabled)
+      }
+     }
+    } else {
+     Text("손절가 < 진입가 < 목표가, 양수 손실 한도, 수수료 0~10%를 입력하세요.")
+      .foregroundStyle(.secondary)
+    }
     Text("가정 계산입니다. 슬리피지·잔고·최소 주문 단위는 별도입니다.").font(.caption)
    }
   }.navigationTitle("현물 매수 전략")
  }
- private var summary: String {
+ private var outcomes: [(label: String, value: String)]? {
   let v = fields.map { field -> Double in
    let raw = field.trimmingCharacters(in:.whitespacesAndNewlines)
    guard raw.range(of:#"\A[0-9]{1,15}(?:[.,][0-9]{1,12})?\z"#,
@@ -136,7 +145,7 @@ private struct SpotScenarioView: View {
   let entry = v[0], stop = v[1], target = v[2], budget = v[3], fee = v[4] / 100
   guard v.allSatisfy({ $0.isFinite }), stop > 0, entry > stop, target > entry,
         budget > 0, fee >= 0, fee <= 0.1 else {
-   return "손절가 < 진입가 < 목표가, 양수 손실 한도, 수수료 0~10%를 입력하세요."
+   return nil
   }
   let loss = entry - stop + fee * (entry + stop)
   let quantity = budget / loss
@@ -144,14 +153,14 @@ private struct SpotScenarioView: View {
   let targetGain = quantity * (target - entry - fee * (entry + target))
   let breakEven = entry * (1 + fee) / (1 - fee)
   let ratio = targetGain / budget
-  guard quantity > 0, quantity.isFinite, cost.isFinite, ratio.isFinite, targetGain.isFinite, breakEven.isFinite else { return "입력 범위를 확인하세요." }
+  guard quantity > 0, quantity.isFinite, cost.isFinite, ratio.isFinite, targetGain.isFinite, breakEven.isFinite else { return nil }
   let format = FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...8))
   return [
-   "가정 수량  \(quantity.formatted(format)) \(symbol)",
-   "필요 자금  \(cost.formatted(format)) \(currency)",
-   "목표 도달 시 손익  \(targetGain.formatted(format)) \(currency)",
-   "손익분기 매도가  \(breakEven.formatted(format)) \(currency)",
-   "수수료 반영 손익비  \(ratio.formatted(format))배"
-  ].joined(separator:"\n")
+   ("가정 수량", "\(quantity.formatted(format)) \(symbol)"),
+   ("필요 자금", "\(cost.formatted(format)) \(currency)"),
+   ("목표 도달 시 손익", "\(targetGain.formatted(format)) \(currency)"),
+   ("손익분기 매도가", "\(breakEven.formatted(format)) \(currency)"),
+   ("수수료 반영 손익비", "\(ratio.formatted(format))배"),
+  ]
  }
 }
