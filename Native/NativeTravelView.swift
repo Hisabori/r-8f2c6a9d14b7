@@ -1,6 +1,7 @@
 import SwiftUI
 import MapKit
 import CoreLocation
+import UserNotifications
 
 enum NativeTravelPlanning {
     static func leaveBy(arrival: Date, travelSeconds: Double, preparationMinutes: Int, marginMinutes: Int) -> Date? {
@@ -29,7 +30,43 @@ enum NativeTravelPlanning {
     private var search: MKLocalSearch?
     private var directions: MKDirections?
     private var generation = UUID()
-    override init() { super.init(); manager.delegate = self; manager.desiredAccuracy = kCLLocationAccuracyHundredMeters }
+    override init() {
+        super.init(); manager.delegate = self; manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        if let saved = UserDefaults.standard.dictionary(forKey:"suite.travel.settings"),
+           let text = saved["query"] as? String, text.count <= 200,
+           let ready = saved["preparation"] as? Int, (0...120).contains(ready),
+           let buffer = saved["margin"] as? Int, (0...30).contains(buffer) {
+            query = text; preparation = ready; margin = buffer
+        }
+    }
+    func saveSettings() {
+        let text = query.trimmingCharacters(in:.whitespacesAndNewlines)
+        guard text.count <= 200 else { notice = "목적지 입력은 200자 이하로 작성하세요."; return }
+        UserDefaults.standard.set(["query":text,"preparation":preparation,"margin":margin],forKey:"suite.travel.settings")
+        notice = "목적지 검색어와 준비·여유 시간을 이 기기에 저장했습니다."
+    }
+    func scheduleReminder(at date: Date) async {
+        guard date.timeIntervalSinceNow > 1 else { notice = "미래의 준비 시각을 계산한 뒤 예약하세요."; return }
+        let center = UNUserNotificationCenter.current()
+        do {
+            guard try await center.requestAuthorization(options:[.alert,.sound]) else { notice = "알림 권한을 허용하면 준비 알림을 받을 수 있어요."; return }
+            let interval = date.timeIntervalSinceNow
+            guard interval > 1 else { notice = "준비 시각이 지났습니다. 다시 계산하세요."; return }
+            let content = UNMutableNotificationContent()
+            content.title = "나갈 준비를 시작할 시간이에요"
+            content.body = "저장한 이동 계획을 확인하세요."
+            content.sound = .default
+            let request = UNNotificationRequest(identifier:"suite.travel.prepare",content:content,trigger:UNTimeIntervalNotificationTrigger(timeInterval:interval,repeats:false))
+            try await center.add(request)
+            notice = "준비 알림을 예약했습니다. 집중 모드 등 기기 설정에 따라 표시가 달라질 수 있습니다."
+        } catch { notice = "준비 알림을 예약하지 못했습니다." }
+    }
+    func cancelReminder() {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers:["suite.travel.prepare"])
+        center.removeDeliveredNotifications(withIdentifiers:["suite.travel.prepare"])
+        notice = "준비 알림을 취소했습니다."
+    }
     func locate() {
         locationRequested = true
         switch manager.authorizationStatus {
@@ -108,6 +145,7 @@ struct NativeTravelView: View {
                         Button("목적지 검색") { Task { await store.find() } }.buttonStyle(.borderedProminent)
                         Button("현재 위치 확인") { store.locate() }.buttonStyle(.bordered)
                     }.frame(minHeight: 44)
+                    Button("목적지·준비 시간 저장") { store.saveSettings() }.frame(minHeight:44)
                     if store.searching { ProgressView("목적지를 찾고 있어요") }
                     ForEach(Array(store.places.enumerated()), id: \.offset) { _, place in
                         Button { store.selected = place; Task { await store.estimate(place) } } label: {
@@ -124,12 +162,14 @@ struct NativeTravelView: View {
                     Stepper("여유 시간 \(margin)분", value: $store.margin, in: 0...30)
                     if let seconds = store.walkingSeconds, let start = NativeTravelPlanning.leaveBy(arrival: arrival, travelSeconds: seconds, preparationMinutes: preparation, marginMinutes: margin) {
                         Text("도보 예상 \(Int(ceil(seconds/60)))분").font(.headline)
+                        Button("준비 시작 알림 예약") { Task { await store.scheduleReminder(at:start) } }.frame(minHeight:44)
                         Button("준비 시각을 잠금 화면에 표시") { NativeLiveStatus.shared.showTravel(prepareAt:start,arrival:arrival,walkingSeconds:seconds) }.frame(minHeight:44)
                         Button("이동 표시 종료") { NativeLiveStatus.shared.endTravel() }.font(.subheadline)
                         Text(activity.travelMessage).font(.caption).foregroundStyle(.secondary)
                         Text("준비 시작 \(start.formatted(date: .abbreviated, time: .shortened))").font(.title3.bold())
                         if start < Date() { Text("지금 기준으로 준비 시간이 부족해요.").foregroundStyle(.orange) }
                     }
+                    Button("준비 알림 취소") { store.cancelReminder() }.frame(minHeight:44)
                     if let selected {
                         Button("Apple 지도에서 대중교통 경로 보기") {
                             selected.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeTransit])
