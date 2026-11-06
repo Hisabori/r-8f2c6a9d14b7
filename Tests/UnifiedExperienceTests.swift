@@ -48,6 +48,17 @@ final class UnifiedExperienceTests: XCTestCase {
         XCTAssertTrue(store.places.isEmpty)
         XCTAssertFalse(store.searching)
     }
+    @MainActor func testRecentServicePersistsOnlyKnownDestinations() {
+        let name = "suite-test-"+UUID().uuidString
+        let preferences = UserDefaults(suiteName:name)!
+        defer { preferences.removePersistentDomain(forName:name) }
+        let router = NativeServiceRouter(preferences:preferences)
+        XCTAssertNil(router.lastDestination)
+        router.note(.travel)
+        XCTAssertEqual(NativeServiceRouter(preferences:preferences).lastDestination,.travel)
+        preferences.set("https://example.invalid",forKey:"suite.last.service")
+        XCTAssertNil(NativeServiceRouter(preferences:preferences).lastDestination)
+    }
     func testServiceLinksContainOnlyFixedDestinations() {
         for path in ["pet","travel","investment","ticker"] {
             XCTAssertEqual(NativeServiceDestination.parse(URL(string:"caresuite-care://service/"+path)!)?.rawValue,path)

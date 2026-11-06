@@ -2,6 +2,7 @@ import SwiftUI
 import CryptoResearchKit
 
 struct NativeDailyServices: View {
+    @ObservedObject private var router = NativeServiceRouter.shared
     @EnvironmentObject private var pets: NativePetStore
     @EnvironmentObject private var travel: NativeTravelStore
     @EnvironmentObject private var investment: NativeInvestmentSession
@@ -11,21 +12,27 @@ struct NativeDailyServices: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("함께하는 일상").font(.title2.bold())
+            if let recent = router.lastDestination {
+                Button { router.open(recent) } label: {
+                    Label("이어보기 · "+recent.title,systemImage:"clock.arrow.circlepath")
+                        .frame(maxWidth:.infinity,minHeight:44,alignment:.leading)
+                }.buttonStyle(.bordered).accessibilityIdentifier("native-service-resume")
+            }
             NavigationLink {
-                NativePetView().toolbar(.hidden, for: .tabBar)
+                NativePetView().onAppear { router.note(.pet) }.toolbar(.hidden, for: .tabBar)
             } label: { service("반려생활", detail: petSummary, symbol: "pawprint.fill", color: Palette.teal) }
             .accessibilityIdentifier("native-pet-open")
             Divider()
             NavigationLink {
-                NativeTravelView().toolbar(.hidden, for: .tabBar)
+                NativeTravelView().onAppear { router.note(.travel) }.toolbar(.hidden, for: .tabBar)
             } label: { service("이동 준비", detail: travelSummary, symbol: "map.fill", color: Palette.blue) }
             .accessibilityIdentifier("native-travel-open")
             Divider()
             NavigationLink {
-                NativeInvestmentView().toolbar(.hidden, for: .tabBar)
+                NativeInvestmentView().onAppear { router.note(.investment) }.toolbar(.hidden, for: .tabBar)
             } label: { service("투자와 리서치", detail: investment.researchSummary, symbol: "chart.xyaxis.line", color: Palette.purple) }
             .accessibilityIdentifier("native-investment-open")
-            NavigationLink { TickerResearchView().toolbar(.hidden, for:.tabBar) } label: {
+            NavigationLink { TickerResearchView().onAppear { router.note(.ticker) }.toolbar(.hidden, for:.tabBar) } label: {
                 Label("바로 티커 분석",systemImage:"sparkle.magnifyingglass").frame(maxWidth:.infinity,minHeight:44)
             }.buttonStyle(.bordered).accessibilityIdentifier("home-ticker-open")
         }.careCard().buttonStyle(.plain)
