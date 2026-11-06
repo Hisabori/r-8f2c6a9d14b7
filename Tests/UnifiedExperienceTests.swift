@@ -1,4 +1,5 @@
 import XCTest
+import MapKit
 @testable import CareSuiteNative
 @testable import CryptoResearchKit
 
@@ -37,6 +38,15 @@ final class UnifiedExperienceTests: XCTestCase {
         XCTAssertTrue(NativeActivityText.travelStale(manual:false,updated:old,arrival:arrival,stale:false,now:now))
         XCTAssertTrue(NativeActivityText.travelStale(manual:true,updated:old,arrival:now,stale:false,now:now))
         XCTAssertTrue(NativeActivityText.travelStale(manual:true,updated:now.addingTimeInterval(10),arrival:arrival,stale:false,now:now))
+    }
+    @MainActor func testEditingTravelQueryClearsPreviousSelection() {
+        let store = NativeTravelStore()
+        store.selected = MKMapItem(placemark:MKPlacemark(coordinate:.init(latitude:0,longitude:0)))
+        store.invalidateQuery()
+        XCTAssertNil(store.selected)
+        XCTAssertNil(store.walkingSeconds)
+        XCTAssertTrue(store.places.isEmpty)
+        XCTAssertFalse(store.searching)
     }
     func testServiceLinksContainOnlyFixedDestinations() {
         for path in ["pet","travel","investment","ticker"] {

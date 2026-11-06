@@ -43,6 +43,11 @@ enum NativeTravelPlanning {
             useManualTime = saved["useManualTime"] as? Bool ?? false
         }
     }
+    func invalidateQuery() {
+        selected = nil; walkingSeconds = nil; places = []
+        routeGeneration = UUID(); generation = UUID()
+        directions?.cancel(); search?.cancel(); searching = false
+    }
     func saveSettings() {
         let text = query.trimmingCharacters(in:.whitespacesAndNewlines)
         guard text.count <= 200 else { notice = "목적지 입력은 200자 이하로 작성하세요."; return }
@@ -143,7 +148,8 @@ struct NativeTravelView: View {
     }
     private func planSummary(start: Date,seconds: Double) -> String {
         let depart = start.addingTimeInterval(Double(preparation)*60)
-        return "이동 계획\n"+store.query+"\n준비 시작 "+start.formatted(date:.abbreviated,time:.shortened)
+        let destination = store.useManualTime ? store.query : (selected?.placemark.title ?? selected?.name ?? store.query)
+        return "이동 계획\n"+destination+"\n준비 시작 "+start.formatted(date:.abbreviated,time:.shortened)
           +"\n출발 "+depart.formatted(date:.abbreviated,time:.shortened)
           +"\n도착 목표 "+arrival.formatted(date:.abbreviated,time:.shortened)
           +"\n"+(store.useManualTime ? "직접 입력 이동시간":"도보 예상")+" "+String(Int(ceil(seconds/60)))+"분"
@@ -200,6 +206,7 @@ struct NativeTravelView: View {
                 }.careCard()
             }.padding(20)
         }.background(CareAppearance.background).navigationTitle("이동 준비").navigationBarTitleDisplayMode(.inline)
+        .onChange(of:store.query) { _ in store.invalidateQuery(); NativeLiveStatus.shared.endTravel() }
         .onChange(of:store.useManualTime) { _ in NativeLiveStatus.shared.endTravel() }
         .onChange(of:store.manualMinutes) { _ in NativeLiveStatus.shared.endTravel() }
         .onChange(of:arrival) { _ in NativeLiveStatus.shared.endTravel() }
