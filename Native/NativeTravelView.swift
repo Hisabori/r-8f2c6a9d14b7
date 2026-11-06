@@ -149,10 +149,15 @@ struct NativeTravelView: View {
     private func planSummary(start: Date,seconds: Double) -> String {
         let depart = start.addingTimeInterval(Double(preparation)*60)
         let destination = store.useManualTime ? store.query : (selected?.placemark.title ?? selected?.name ?? store.query)
-        return "이동 계획\n"+destination+"\n준비 시작 "+start.formatted(date:.abbreviated,time:.shortened)
-          +"\n출발 "+depart.formatted(date:.abbreviated,time:.shortened)
-          +"\n도착 목표 "+arrival.formatted(date:.abbreviated,time:.shortened)
-          +"\n"+(store.useManualTime ? "직접 입력 이동시간":"도보 예상")+" "+String(Int(ceil(seconds/60)))+"분"
+        let mode = store.useManualTime ? "직접 입력 이동시간":"도보 예상"
+        return [
+            "이동 계획",
+            destination,
+            "준비 시작 "+start.formatted(date:.abbreviated,time:.shortened),
+            "출발 "+depart.formatted(date:.abbreviated,time:.shortened),
+            "도착 목표 "+arrival.formatted(date:.abbreviated,time:.shortened),
+            mode+" "+String(Int(ceil(seconds/60)))+"분"
+        ].joined(separator:"\n")
     }
     var body: some View {
         ScrollView {
