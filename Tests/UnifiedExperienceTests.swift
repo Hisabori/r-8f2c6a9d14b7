@@ -9,6 +9,7 @@ final class UnifiedExperienceTests: XCTestCase {
         XCTAssertNil(NativeActivityText.progress(processed:3,total:100_001))
         XCTAssertEqual(NativeActivityText.progress(processed:-1,total:10),0)
         XCTAssertEqual(NativeActivityText.progress(processed:5,total:10),50)
+        XCTAssertEqual(NativeActivityText.progress(processed:29,total:100),29)
         XCTAssertEqual(NativeActivityText.progress(processed:11,total:10),100)
     }
     func testActivityCountdownAndFreshnessBounds() {

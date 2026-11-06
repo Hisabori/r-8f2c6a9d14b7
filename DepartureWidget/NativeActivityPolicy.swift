@@ -18,7 +18,7 @@ enum NativeActivityText {
     static func progress(processed: Int,total: Int?) -> Int? {
         guard let total,total > 0,total <= 100_000 else { return nil }
         let done = min(total,max(0,processed))
-        return Int(Double(done) / Double(total) * 100)
+        return done * 100 / total
     }
     static func researchStale(updated: Date,stale: Bool,now: Date) -> Bool {
         stale || !fresh(updated,at:now,maxAge:90)
