@@ -164,6 +164,7 @@ struct NativeTravelView: View {
             VStack(alignment: .leading, spacing: 18) {
                 Text("외출은 여유 있게").font(.title.bold())
                 Text("목적지를 찾고 준비 시간까지 함께 챙겨요.").foregroundStyle(.secondary)
+                NavigationLink("공공교통 · 도착정보와 혼잡도") { NativePublicTransitView() }.accessibilityIdentifier("public-transit-open")
                 VStack(alignment: .leading, spacing: 14) {
                     TextField("장소 또는 주소", text: $store.query).textFieldStyle(.roundedBorder).submitLabel(.search).onSubmit { Task { await store.find() } }
                     HStack {
@@ -207,7 +208,7 @@ struct NativeTravelView: View {
                             selected.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeTransit])
                         }.frame(minHeight: 44)
                     }
-                    Text("직접 입력한 시간 또는 마지막 도보 예상으로 계산합니다. 지하철 실시간 도착·혼잡도는 이 화면에 아직 연결되지 않았어요.").font(.caption).foregroundStyle(.secondary)
+                    Text("직접 입력한 시간 또는 마지막 도보 예상으로 계산합니다. 공공교통 화면의 도착정보와 평균 혼잡도는 이동시간 계산에 자동 적용하지 않습니다.").font(.caption).foregroundStyle(.secondary)
                 }.careCard()
             }.padding(20)
         }.background(CareAppearance.background).navigationTitle("이동 준비").navigationBarTitleDisplayMode(.inline)

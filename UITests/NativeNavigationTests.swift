@@ -54,6 +54,21 @@ final class NativeNavigationTests: XCTestCase {
             app.navigationBars.buttons.element(boundBy:0).tap()
         }
     }
+    func testPublicTransitOpensWithoutKeyAndKeepsTravelAvailable() {
+        let app = XCUIApplication();app.launch()
+        let travel = app.buttons["native-travel-open"]
+        if !travel.isHittable { app.swipeUp() }
+        XCTAssertTrue(travel.waitForExistence(timeout:20));travel.tap()
+        let link = app.buttons["public-transit-open"]
+        XCTAssertTrue(link.waitForExistence(timeout:10));link.tap()
+        let station = app.textFields["public-transit-station"]
+        XCTAssertTrue(station.waitForExistence(timeout:10));station.tap();station.typeText("서울")
+        app.buttons["지하철 도착정보 조회"].tap()
+        XCTAssertTrue(app.staticTexts["역 이름과 영문·숫자 인증키를 확인하세요."].waitForExistence(timeout:10))
+        app.navigationBars.buttons.element(boundBy:0).tap()
+        XCTAssertTrue(link.waitForExistence(timeout:10))
+        XCTAssertEqual(app.state,.runningForeground)
+    }
     func testOnCareOwnsNavigationWithoutFlutterHost() {
         let app = XCUIApplication(); app.launch()
         for id in ["native-pet-open", "native-travel-open", "native-investment-open"] {
