@@ -163,7 +163,7 @@ struct NativeTravelView: View {
                     if let seconds = store.walkingSeconds, let start = NativeTravelPlanning.leaveBy(arrival: arrival, travelSeconds: seconds, preparationMinutes: preparation, marginMinutes: margin) {
                         Text("도보 예상 \(Int(ceil(seconds/60)))분").font(.headline)
                         Button("준비 시작 알림 예약") { Task { await store.scheduleReminder(at:start) } }.frame(minHeight:44)
-                        Button("준비 시각을 잠금 화면에 표시") { NativeLiveStatus.shared.showTravel(prepareAt:start,arrival:arrival,walkingSeconds:seconds) }.frame(minHeight:44)
+                        Button("준비 시각을 잠금 화면에 표시") { NativeLiveStatus.shared.showTravel(prepareAt:start,arrival:arrival,walkingSeconds:seconds,departureAt:start.addingTimeInterval(Double(preparation)*60)) }.frame(minHeight:44)
                         Button("이동 표시 종료") { NativeLiveStatus.shared.endTravel() }.font(.subheadline)
                         Text(activity.travelMessage).font(.caption).foregroundStyle(.secondary)
                         Text("준비 시작 \(start.formatted(date: .abbreviated, time: .shortened))").font(.title3.bold())

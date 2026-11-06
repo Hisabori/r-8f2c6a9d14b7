@@ -15,6 +15,18 @@ enum NativeActivityText {
         default: return "소리 상태 확인 중"
         }
     }
+    static func progress(processed: Int,total: Int?) -> Int? {
+        guard let total,total > 0,total <= 100_000 else { return nil }
+        let done = min(total,max(0,processed))
+        return Int(Double(done) / Double(total) * 100)
+    }
+    static func researchStale(updated: Date,stale: Bool,now: Date) -> Bool {
+        stale || !fresh(updated,at:now,maxAge:90)
+    }
+    static func countdownRange(until: Date,now: Date) -> ClosedRange<Date> {
+        let end = until.timeIntervalSince1970.isFinite ? max(now,until) : now
+        return now...end
+    }
     static func compactSteps(_ value: Int) -> String {
         let value = min(1_000_000,max(0,value))
         return value >= 10_000 ? String(format:"%.1f만",Double(value)/10_000):String(value)

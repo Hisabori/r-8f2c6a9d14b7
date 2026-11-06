@@ -3,6 +3,32 @@ import XCTest
 @testable import CryptoResearchKit
 
 final class UnifiedExperienceTests: XCTestCase {
+    func testActivityProgressBoundsAndUnknownTotals() {
+        XCTAssertNil(NativeActivityText.progress(processed:3,total:nil))
+        XCTAssertNil(NativeActivityText.progress(processed:3,total:0))
+        XCTAssertNil(NativeActivityText.progress(processed:3,total:100_001))
+        XCTAssertEqual(NativeActivityText.progress(processed:-1,total:10),0)
+        XCTAssertEqual(NativeActivityText.progress(processed:5,total:10),50)
+        XCTAssertEqual(NativeActivityText.progress(processed:11,total:10),100)
+    }
+    func testActivityCountdownAndFreshnessBounds() {
+        let now = Date(timeIntervalSince1970:1_750_000_000)
+        XCTAssertEqual(NativeActivityText.countdownRange(until:now.addingTimeInterval(-20),now:now).upperBound,now)
+        XCTAssertEqual(NativeActivityText.countdownRange(until:now.addingTimeInterval(4000),now:now).upperBound,now.addingTimeInterval(4000))
+        XCTAssertFalse(NativeActivityText.researchStale(updated:now,stale:false,now:now))
+        XCTAssertTrue(NativeActivityText.researchStale(updated:now.addingTimeInterval(-91),stale:false,now:now))
+        XCTAssertTrue(NativeActivityText.researchStale(updated:now.addingTimeInterval(10),stale:false,now:now))
+        XCTAssertTrue(NativeActivityText.researchStale(updated:now,stale:true,now:now))
+    }
+    @available(iOS 16.2, *)
+    func testPreviousActivityPayloadsRemainDecodable() throws {
+        let decoder = JSONDecoder()
+        let travel = try decoder.decode(DepartureAttributes.ContentState.self,from:Data(#"{"leaveAt":100,"trainAt":200,"updatedAt":50}"#.utf8))
+        XCTAssertNil(travel.plannedAt)
+        XCTAssertNil(travel.departureAt)
+        let pet = try decoder.decode(BarkAnalysisAttributes.ContentState.self,from:Data(#"{"signal":"processing","barkPercent":0,"elapsed":0,"processed":0,"positive":0,"updatedAt":50}"#.utf8))
+        XCTAssertNil(pet.total)
+    }
     func testServiceLinksContainOnlyFixedDestinations() {
         for path in ["pet","travel","investment","ticker"] {
             XCTAssertEqual(NativeServiceDestination.parse(URL(string:"caresuite-care://service/"+path)!)?.rawValue,path)

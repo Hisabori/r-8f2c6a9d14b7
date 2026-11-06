@@ -12,7 +12,7 @@ enum PetSoundError: LocalizedError {
     }
 }
 enum PetSoundModel {
-    static func analyze(_ url: URL) throws -> (Double, [PetSoundWindow]) {
+    static func analyze(_ url: URL,progress: (@Sendable (Int,Int) -> Void)? = nil) throws -> (Double, [PetSoundWindow]) {
         let file = try AVAudioFile(forReading: url)
         let duration = Double(file.length) / file.processingFormat.sampleRate
         guard duration.isFinite, duration > 0, duration <= 120,
@@ -39,6 +39,7 @@ enum PetSoundModel {
         guard try interpreter.input(at: 0).shape.dimensions == [15600], try interpreter.output(at: 0).shape.dimensions == [1,521] else { throw PetSoundError.invalidModel }
         let count = Int(output.frameLength)
         var windows: [PetSoundWindow] = []
+        let total = count <= 15600 ? 1 : 1 + Int(ceil(Double(count-15600)/7680))
         for start in stride(from: 0, to: count, by: 7680) {
             var frame = [Float](repeating: 0, count: 15600)
             let length = min(15600, count - start)
@@ -51,6 +52,9 @@ enum PetSoundModel {
             _ = scores.withUnsafeMutableBytes { tensor.data.copyBytes(to: $0) }
             guard scores.allSatisfy({ $0.isFinite && $0 >= 0 && $0 <= 1.00001 }) else { throw PetSoundError.invalidScores }
             windows.append(PetSoundWindow(start: Double(start)/16000, end: min(Double(start+15600)/16000,duration), bark: min(1,Double(scores[70])), dog: min(1,Double(scores[69])), speech: min(1,Double(scores[0]))))
+            if windows.count == 1 || windows.count % 5 == 0 || start+15600 >= count {
+                progress?(windows.count,total)
+            }
             if start+15600 >= count { break }
         }
         return (duration, windows)

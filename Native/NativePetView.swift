@@ -23,6 +23,7 @@ struct NativePetRecord: Codable, Identifiable {
     private var recorder: AVAudioRecorder?
     private var recordingStart = Date()
     private var timer: Timer?
+    private var analysisGeneration = UUID()
     private var healthyStorage = true
     private let folder: URL
     override init() {
@@ -38,7 +39,7 @@ struct NativePetRecord: Codable, Identifiable {
         guard !recording, !busy, healthyStorage else { return }
         guard !SleepSoundStore.shared.running else { notice = "수면 소리 측정을 먼저 종료하세요."; return }
         busy = true
-        defer { busy = false }
+        defer { analysisGeneration = UUID(); busy = false }
         let session = AVAudioSession.sharedInstance()
         let granted = await withCheckedContinuation { continuation in session.requestRecordPermission { continuation.resume(returning: $0) } }
         guard granted else { notice = "설정에서 마이크 권한을 허용하거나 파일 가져오기를 이용하세요."; return }
@@ -79,6 +80,7 @@ struct NativePetRecord: Codable, Identifiable {
     func analyze(_ source: URL, name: String, note: String) async {
         guard !busy, !recording, healthyStorage else { return }
         busy = true
+        let token = UUID(); analysisGeneration = token
         NativeLiveStatus.shared.petProcessing()
         defer { busy = false }
         var staged: URL?
@@ -90,7 +92,13 @@ struct NativePetRecord: Codable, Identifiable {
             let id = UUID()
             let target = folder.appendingPathComponent(id.uuidString).appendingPathExtension(source.pathExtension.isEmpty ? "m4a" : source.pathExtension)
             try FileManager.default.copyItem(at: source, to: target); staged = target
-            let result = try await Task.detached(priority: .userInitiated) { try PetSoundModel.analyze(target) }.value
+            let result = try await Task.detached(priority: .userInitiated) { try PetSoundModel.analyze(target) { [weak self] processed,total in
+                Task { @MainActor in
+                    guard let self,self.busy,self.analysisGeneration == token else { return }
+                    NativeLiveStatus.shared.petProgress(processed:processed,total:total)
+                }
+            } }.value
+            analysisGeneration = UUID()
             let record = NativePetRecord(id: id, date: Date(), name: String(name.prefix(100)), note: String(note.prefix(2000)), file: target.lastPathComponent, duration: result.0, windows: result.1)
             var updated = records; updated.insert(record, at: 0)
             try JSONEncoder().encode(updated).write(to: folder.appendingPathComponent("records.json"), options: [.atomic, .completeFileProtection])

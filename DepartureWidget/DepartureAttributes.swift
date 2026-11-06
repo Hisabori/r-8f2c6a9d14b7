@@ -6,6 +6,8 @@ struct DepartureAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
         var leaveAt: Date
         var trainAt: Date
+        var plannedAt: Date? = nil
+        var departureAt: Date? = nil
         var updatedAt: Date?
     }
     var station: String
@@ -22,6 +24,7 @@ struct BarkAnalysisAttributes: ActivityAttributes {
         var processed: Int
         var positive: Int
         var updatedAt: Date
+        var total: Int? = nil
     }
     var startedAt: Date
 }
