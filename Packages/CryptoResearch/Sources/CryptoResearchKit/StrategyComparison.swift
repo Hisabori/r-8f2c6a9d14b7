@@ -1,6 +1,21 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+struct ComparisonResearchInput {
+    let ticker: ResearchTicker
+    let fetched: Date
+    let synthetic: Bool
+    let bars: [StrategyBar]
+    var label: String { (synthetic ? "합성 · ":"분석 스냅샷 · ")+ticker.label+" · "+(ticker.asset == .crypto ? "USDT":"USD")+" · 확정 일봉" }
+    init(_ report: ResearchReport) throws {
+        guard (30...50000).contains(report.bars.count),report.bars.allSatisfy({ $0.valid }) else { throw StrategyError.invalid("전달할 유효 확정 일봉이 30개 이상 필요합니다.") }
+        let times = report.bars.compactMap { Int64(exactly:($0.time.timeIntervalSince1970*1000).rounded()) }
+        guard times.count == report.bars.count,report.fetched.timeIntervalSince1970.isFinite,zip(times,times.dropFirst()).allSatisfy({ $0.0 < $0.1 }) else { throw StrategyError.invalid("일봉 시각 순서를 확인하세요.") }
+        ticker = report.ticker;fetched = report.fetched;synthetic = report.synthetic
+        bars = zip(times,report.bars).map { time,bar in StrategyBar(t:time,o:bar.open,h:bar.high,l:bar.low,c:bar.close,v:bar.volume) }
+    }
+    func marketSymbol(in symbols: [String]) -> String? { ticker.asset == .crypto && symbols.contains(ticker.base) ? ticker.base:nil }
+}
 struct StrategyComparisonRow: Codable {
     let profile: String
     let segment: String
@@ -15,6 +30,7 @@ struct StrategyComparisonRow: Codable {
 }
 struct StrategyComparisonReport: Codable {
     let mode: String
+    let inputLabel: String?
     let synthetic: Bool
     let rows: [StrategyComparisonRow]
     let buyAndHoldReturnPct: Double
@@ -22,7 +38,7 @@ struct StrategyComparisonReport: Codable {
     let notes: [String]
 }
 enum StrategyComparison {
-    static func run(_ rows: [StrategyBar],capital: Double,fee: Double,slip: Double,synthetic: Bool) throws -> StrategyComparisonReport {
+    static func run(_ rows: [StrategyBar],capital: Double,fee: Double,slip: Double,synthetic: Bool,inputLabel: String? = nil) throws -> StrategyComparisonReport {
         _ = try StrategyCore(capital,fee,slip)
         guard (30...50000).contains(rows.count) else { throw StrategyError.invalid("비교에는 30~50000봉이 필요합니다.") }
         var previous = Int64.min
@@ -58,7 +74,7 @@ enum StrategyComparison {
         let quantity = capital/entryUnitCost
         let proceeds = quantity*rows[rows.count-1].c*(1-slip/10000)*(1-fee/10000)
         guard quantity.isFinite,proceeds.isFinite,((proceeds/capital-1)*100).isFinite,results.allSatisfy({ $0.returnPct.isFinite && $0.maxDrawdownPct.isFinite && $0.totalFees.isFinite }) else { throw StrategyError.invalid("입력 규모가 계산 범위를 초과했습니다.") }
-        return StrategyComparisonReport(mode:"PAPER_STRATEGY_COMPARISON_V1",synthetic:synthetic,rows:results,buyAndHoldReturnPct:(proceeds/capital-1)*100,splitIndex:splitIndex,notes:notes)
+        return StrategyComparisonReport(mode:"PAPER_STRATEGY_COMPARISON_V1",inputLabel:inputLabel,synthetic:synthetic,rows:results,buyAndHoldReturnPct:(proceeds/capital-1)*100,splitIndex:splitIndex,notes:notes)
     }
     static func sample() -> [StrategyBar] {
         (0..<180).map { index in
@@ -68,40 +84,44 @@ enum StrategyComparison {
     }
 }
 @MainActor final class StrategyComparisonStore: ObservableObject {
+    @Published var capital = "1000000"
+    @Published var fee = "5"
+    @Published var slip = "5"
+    @Published private(set) var researchInput: ComparisonResearchInput?
     @Published var report: StrategyComparisonReport?
     @Published var message = "CSV로 비교하거나 합성 예제를 실행하세요."
     @Published var busy = false
     private var task: Task<Void,Never>?
     private var generation = UUID()
     func cancel() { if busy { message = "비교를 취소했습니다." };generation = UUID();task?.cancel();task = nil;busy = false }
-    func start(url: URL?,capital: Double,fee: Double,slip: Double) {
+    func useResearch(_ input: ComparisonResearchInput) { cancel();report = nil;researchInput = input;message = "분석 일봉을 받았습니다. 비용을 확인하고 비교를 실행하세요." }
+    func start(url: URL?,capital: Double,fee: Double,slip: Double,researchInput input: ComparisonResearchInput? = nil) {
         cancel();let token = generation;report = nil;busy = true;message = "기기 안에서 전략 비교 중"
         task = Task {
             let worker = Task.detached(priority:.userInitiated) { () throws -> StrategyComparisonReport in
                 let rows: [StrategyBar]
-                if let url {
+                if let input { rows = input.bars }
+                else if let url {
                     let access = url.startAccessingSecurityScopedResource();defer { if access { url.stopAccessingSecurityScopedResource() } }
                     let file = try FileHandle(forReadingFrom:url);defer { try? file.close() }
                     let bytes = try file.read(upToCount:8*1024*1024+1) ?? Data()
                     guard bytes.count <= 8*1024*1024,let text = String(data:bytes,encoding:.utf8) else { throw StrategyError.invalid("UTF-8 CSV 8MB 이하가 필요합니다.") }
                     rows = try StrategyCore.csv(text)
                 } else { rows = StrategyComparison.sample() }
-                return try StrategyComparison.run(rows,capital:capital,fee:fee,slip:slip,synthetic:url == nil)
+                return try StrategyComparison.run(rows,capital:capital,fee:fee,slip:slip,synthetic:input?.synthetic ?? (url == nil),inputLabel:input?.label ?? (url == nil ? "합성 예제":"사용자 CSV · 통화 미지정"))
             }
             do {
                 let value = try await withTaskCancellationHandler(operation: { try await worker.value },onCancel: { worker.cancel() })
                 guard !Task.isCancelled,generation == token else { return }
-                report = value;message = value.synthetic ? "합성 예제 · 실제 시장 성과 아님":"입력 CSV 비교 · 과거 모의 결과"
+                report = value;message = value.synthetic ? "합성 예제 · 실제 시장 성과 아님":"입력 자료 비교 · 과거 모의 결과"
             } catch { if !Task.isCancelled,generation == token { message = "실행 실패: "+error.localizedDescription } }
             if generation == token { busy = false;task = nil }
         }
     }
 }
 struct StrategyComparisonView: View {
-    @StateObject private var store = StrategyComparisonStore()
-    @State private var capital = "1000000"
-    @State private var fee = "5"
-    @State private var slip = "5"
+    @ObservedObject var store: StrategyComparisonStore
+    let market: MarketStore
     @State private var importing = false
     @State private var exporting = false
     @State private var document = JSONDocument(data:Data())
@@ -111,15 +131,28 @@ struct StrategyComparisonView: View {
             VStack(alignment:.leading,spacing:18) {
                 Text("전략의 비용과 위험을 함께").font(.title2.bold())
                 VStack(alignment:.leading,spacing:12) {
-                    TextField("시작 자본",text:$capital).keyboardType(.decimalPad).textFieldStyle(.roundedBorder)
-                    TextField("수수료 bps",text:$fee).keyboardType(.decimalPad).textFieldStyle(.roundedBorder)
-                    TextField("슬리피지 bps",text:$slip).keyboardType(.decimalPad).textFieldStyle(.roundedBorder)
+                    TextField("시작 자본",text:$store.capital).keyboardType(.decimalPad).textFieldStyle(.roundedBorder)
+                    TextField("수수료 bps",text:$store.fee).keyboardType(.decimalPad).textFieldStyle(.roundedBorder)
+                    TextField("슬리피지 bps",text:$store.slip).keyboardType(.decimalPad).textFieldStyle(.roundedBorder)
+                    if let input = store.researchInput {
+                        Text("전달받은 자료 · "+input.label).font(.subheadline).accessibilityIdentifier("comparison-research-source")
+                        Text("분석 시각 "+input.fetched.formatted(date:.abbreviated,time:.shortened)+" · \(input.bars.count)봉").font(.caption)
+                        Text("일봉 종료시각을 봉 식별자로 사용합니다. 실제 장중 체결시각을 재현하지 않습니다.").font(.caption).foregroundStyle(.secondary)
+                        Button("전달받은 일봉 비교") { run(nil,input:input) }.disabled(store.busy).frame(minHeight:44).accessibilityIdentifier("comparison-research-run")
+                        if let symbol = input.marketSymbol(in:market.symbols) {
+                            NavigationLink {
+                                MarketView(favoritesOnly:false).environmentObject(market).onAppear { market.selected = symbol;market.setForeground(true) }.onDisappear { market.setForeground(false) }
+                            } label: { Text(symbol+" 원화 시세 살펴보기") }
+                            Text("분석은 USDT 일봉, 시세 화면은 KRW 관측 가격으로 가격 기준이 다릅니다.").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
                     Button("CSV 전략 비교") { importing = true }.frame(minHeight:44).disabled(store.busy)
                     Button("합성 예제 비교") { run(nil) }.frame(minHeight:44).disabled(store.busy).accessibilityIdentifier("strategy-comparison-sample")
                     if store.busy { ProgressView();Button("비교 취소") { store.cancel() } }
                     Text(inputMessage.isEmpty ? store.message:inputMessage).accessibilityIdentifier("strategy-comparison-status")
                 }.modifier(CareCard())
                 if let report = store.report {
+                    Text("이번 결과 입력 · "+(report.inputLabel ?? "이전 비교 결과")).font(.headline)
                     ForEach(Array(report.rows.enumerated()),id:\.offset) { _,row in
                         VStack(alignment:.leading,spacing:6) {
                             Text(row.profile+" · "+row.segment).font(.headline)
@@ -140,13 +173,13 @@ struct StrategyComparisonView: View {
         .fileImporter(isPresented:$importing,allowedContentTypes:[.commaSeparatedText,.plainText]) { result in
             switch result { case .success(let url):run(url);case .failure:inputMessage = "파일을 열지 못했습니다." }
         }
-        .fileExporter(isPresented:$exporting,document:document,contentType:.json,defaultFilename:"strategy-comparison") { _ in }
+        .fileExporter(isPresented:$exporting,document:document,contentType:.json,defaultFilename:"strategy-comparison") { result in if case .failure = result { inputMessage = "비교 결과를 저장하지 못했습니다." } }
         .onDisappear { store.cancel() }
-        .onChange(of:capital) { _ in inputsChanged() }.onChange(of:fee) { _ in inputsChanged() }.onChange(of:slip) { _ in inputsChanged() }
+        .onChange(of:store.capital) { _ in inputsChanged() }.onChange(of:store.fee) { _ in inputsChanged() }.onChange(of:store.slip) { _ in inputsChanged() }
     }
     private func inputsChanged() { store.cancel();store.report = nil;inputMessage = "입력이 변경됐습니다. 다시 비교하세요." }
-    private func run(_ url: URL?) {
-        guard let c = Double(capital),let f = Double(fee),let s = Double(slip) else { inputMessage = "숫자 입력을 확인하세요.";return }
-        inputMessage = "";store.start(url:url,capital:c,fee:f,slip:s)
+    private func run(_ url: URL?,input: ComparisonResearchInput? = nil) {
+        guard let c = Double(store.capital),let f = Double(store.fee),let s = Double(store.slip) else { inputMessage = "숫자 입력을 확인하세요.";return }
+        inputMessage = "";store.start(url:url,capital:c,fee:f,slip:s,researchInput:input)
     }
 }

@@ -12,6 +12,8 @@ public struct NativeResearchDigest: Codable, Equatable {
 @MainActor public final class NativeInvestmentSession: ObservableObject {
     let market = MarketStore()
     let research = TickerResearchStore()
+    let comparison = StrategyComparisonStore()
+    private var comparisonObservation: AnyCancellable?
     @Published var researchAsset = ResearchAsset.crypto { didSet { defaults.set(researchAsset.rawValue,forKey:"research-input-kind-v1") } }
     @Published var researchTicker = "BTC" { didSet { defaults.set(researchTicker,forKey:"research-input-symbol-v1") } }
     private var observation: AnyCancellable?
@@ -22,7 +24,17 @@ public struct NativeResearchDigest: Codable, Equatable {
         if let input = defaults.string(forKey:"research-input-symbol-v1"),input.count <= 24,(try? ResearchTicker(input,asset:researchAsset)) != nil { researchTicker = input }
         else { researchTicker = researchAsset == .stock ? "AAPL":"BTC" }
         market.setForeground(false)
+        comparisonObservation = comparison.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         observation = research.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+    }
+    func prepareComparison() throws {
+        guard let report = research.report else { throw StrategyError.invalid("먼저 티커 분석을 실행하세요.") }
+        comparison.useResearch(try ComparisonResearchInput(report))
+    }
+    var comparisonSummary: String {
+        if comparison.busy { return "전략 비교 계산 중" }
+        if let report = comparison.report { return "최근 전략 비교 · "+(report.inputLabel ?? "비교 결과") }
+        return comparison.researchInput.map { "비교 준비 · "+$0.ticker.label } ?? "일봉 분석을 전략 비교로 이어가세요"
     }
     public func cancelResearch() { research.cancel() }
     public var researchBusy: Bool { research.busy }

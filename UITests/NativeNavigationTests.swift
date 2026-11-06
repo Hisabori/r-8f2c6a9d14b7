@@ -82,6 +82,32 @@ final class NativeNavigationTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["합성 예제 · 실제 시장 성과 아님"].waitForExistence(timeout:20))
         XCTAssertEqual(app.state,.runningForeground)
     }
+    func testTickerToComparisonAndReturnPreservesResult() {
+        let app = XCUIApplication();app.launch()
+        let investment = app.buttons["native-investment-open"]
+        if !investment.isHittable { app.swipeUp() }
+        XCTAssertTrue(investment.waitForExistence(timeout:20));investment.tap()
+        let entry = app.buttons["ticker-research-open"]
+        XCTAssertTrue(entry.waitForExistence(timeout:10));entry.tap()
+        let sample = app.buttons["ticker-sample"]
+        for _ in 0..<5 { if sample.isHittable { break };app.swipeUp() }
+        XCTAssertTrue(sample.isHittable);sample.tap()
+        let handoff = app.buttons["ticker-to-comparison"]
+        for _ in 0..<5 { if handoff.isHittable { break };app.swipeUp() }
+        XCTAssertTrue(handoff.waitForExistence(timeout:10));handoff.tap()
+        let source = app.staticTexts["comparison-research-source"]
+        XCTAssertTrue(source.waitForExistence(timeout:10));XCTAssertTrue(source.label.contains("합성"))
+        let run = app.buttons["comparison-research-run"]
+        if !run.isHittable { app.swipeUp() };run.tap()
+        XCTAssertTrue(app.staticTexts["합성 예제 · 실제 시장 성과 아님"].waitForExistence(timeout:20))
+        app.navigationBars.buttons.element(boundBy:0).tap()
+        app.navigationBars.buttons.element(boundBy:0).tap()
+        let compare = app.buttons["strategy-comparison-open"]
+        if !compare.isHittable { app.swipeUp() };compare.tap()
+        let result = app.staticTexts["합성 예제 · 실제 시장 성과 아님"]
+        if !result.isHittable { app.swipeUp() }
+        XCTAssertTrue(result.waitForExistence(timeout:10));XCTAssertEqual(app.state,.runningForeground)
+    }
     func testOnCareOwnsNavigationWithoutFlutterHost() {
         let app = XCUIApplication(); app.launch()
         for id in ["native-pet-open", "native-travel-open", "native-investment-open"] {

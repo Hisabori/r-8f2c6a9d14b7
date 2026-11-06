@@ -76,6 +76,7 @@ private struct TickerResearchContent: View {
     @ObservedObject var session: NativeInvestmentSession
     @ObservedObject var store: TickerResearchStore
     @AppStorage("native-research-live") private var liveStatus = false
+    @State private var showComparison = false
     @State private var showKey = false
     @State private var keyAvailable = !TickerResearchKey.read().isEmpty
     @State private var importing = false
@@ -88,9 +89,12 @@ private struct TickerResearchContent: View {
         ScrollView {
             VStack(alignment:.leading,spacing:18) {
                 controls
-                if let r = store.report { overview(r);priceChart(r);if let m = r.metrics { indicators(m) };evidence(r);headlines("뉴스",r.news,synthetic:r.synthetic);headlines("커뮤니티",r.community,synthetic:r.synthetic) }
+                if let r = store.report {
+                    Button("이 일봉으로 전략 비교") { do { try session.prepareComparison();showComparison = true } catch { store.message = error.localizedDescription } }.frame(minHeight:44).accessibilityIdentifier("ticker-to-comparison")
+                    overview(r);priceChart(r);if let m = r.metrics { indicators(m) };evidence(r);headlines("뉴스",r.news,synthetic:r.synthetic);headlines("커뮤니티",r.community,synthetic:r.synthetic) }
             }.padding(20)
         }.background(Color(uiColor:.systemGroupedBackground)).navigationTitle("티커 종합 분석").navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(isPresented:$showComparison) { StrategyComparisonView(store:session.comparison,market:session.market) }
         .onChange(of:ticker) { _ in store.cancel(clear:true) }
         .onChange(of:asset) { _ in store.cancel(clear:true) }
         .sheet(isPresented:$showKey,onDismiss:{ keyAvailable = !TickerResearchKey.read().isEmpty }) { ResearchDataKeyView() }
