@@ -18,7 +18,7 @@ enum PublicTransitData {
     static func endpoint(station input: String,key: String) throws -> URL {
         let name = input.trimmingCharacters(in:.whitespacesAndNewlines)
         guard !name.isEmpty,name.count <= 40,!name.contains(where: { $0.isNewline || $0 == "/" || $0 == "?" || $0 == "#" }),
-              key.range(of:"^[A-Za-z0-9]{1,128}$",options:.regularExpression) != nil else { throw PublicTransitError.invalidInput }
+              (1...128).contains(key.utf8.count),key.utf8.allSatisfy({ (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) }) else { throw PublicTransitError.invalidInput }
         var url = URL(string:"https://swopenapi.seoul.go.kr")!
         for component in ["api","subway",key,"json","realtimeStationArrival","0","100",name] { url.appendPathComponent(component) }
         return url
@@ -29,7 +29,7 @@ enum PublicTransitData {
               let rows = root["realtimeArrivalList"] as? [[String:Any]],rows.count <= 100 else { throw PublicTransitError.invalidResponse }
         let formatter = DateFormatter();formatter.locale = Locale(identifier:"en_US_POSIX")
         formatter.timeZone = TimeZone(identifier:"Asia/Seoul");formatter.dateFormat = "yyyy-MM-dd HH:mm:ss";formatter.isLenient = false
-        return rows.enumerated().compactMap { index,row in
+        return rows.enumerated().compactMap { index,row -> PublicTrainArrival? in
             guard let stationName = row["statnNm"] as? String,station(stationName) == station(name),
                   let raw = row["recptnDt"] as? String,raw.count == 19,let date = formatter.date(from:raw),
                   let line = row["trainLineNm"] as? String,line.count <= 200,
@@ -47,7 +47,7 @@ enum PublicTransitData {
         let weekday = calendar.component(.weekday,from:date)
         let day = weekday == 1 ? "일요일":weekday == 7 ? "토요일":"평일"
         guard let column = headers.firstIndex(of:"\(hour)시\(minute)분") ?? (hour == 0 ? headers.firstIndex(of:"00시\(minute)분") : nil), column >= 5 else { return [] }
-        return rows.compactMap { row in
+        return rows.compactMap { row -> String? in
             guard row.count > column,row.count >= 5,row[0] == day,station(row[3]) == station(name),
                   let value = Double(row[column].trimmingCharacters(in:.whitespaces)),value.isFinite,value >= 0,value <= 500 else { return nil }
             return "\(row[1]) · \(row[4]) · \(value.formatted(.number.precision(.fractionLength(1))))%"
