@@ -20,6 +20,13 @@ enum NativeActivityText {
         let done = min(total,max(0,processed))
         return done * 100 / total
     }
+    static func travelStale(manual: Bool,updated: Date?,arrival: Date,stale: Bool,now: Date) -> Bool {
+        guard !stale,arrival.timeIntervalSince1970.isFinite,arrival > now else { return true }
+        if !manual { return !fresh(updated,at:now) }
+        guard let updated else { return true }
+        let age = now.timeIntervalSince(updated)
+        return !age.isFinite || age < -5
+    }
     static func researchStale(updated: Date,stale: Bool,now: Date) -> Bool {
         stale || !fresh(updated,at:now,maxAge:90)
     }

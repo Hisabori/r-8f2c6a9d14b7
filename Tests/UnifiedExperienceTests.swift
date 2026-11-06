@@ -30,6 +30,14 @@ final class UnifiedExperienceTests: XCTestCase {
         let pet = try decoder.decode(BarkAnalysisAttributes.ContentState.self,from:Data(#"{"signal":"processing","barkPercent":0,"elapsed":0,"processed":0,"positive":0,"updatedAt":50}"#.utf8))
         XCTAssertNil(pet.total)
     }
+    func testManualTravelKeepsFixedPlanWhileRouteEstimatesExpire() {
+        let now = Date(timeIntervalSince1970:1_750_000_000)
+        let old = now.addingTimeInterval(-300), arrival = now.addingTimeInterval(3600)
+        XCTAssertFalse(NativeActivityText.travelStale(manual:true,updated:old,arrival:arrival,stale:false,now:now))
+        XCTAssertTrue(NativeActivityText.travelStale(manual:false,updated:old,arrival:arrival,stale:false,now:now))
+        XCTAssertTrue(NativeActivityText.travelStale(manual:true,updated:old,arrival:now,stale:false,now:now))
+        XCTAssertTrue(NativeActivityText.travelStale(manual:true,updated:now.addingTimeInterval(10),arrival:arrival,stale:false,now:now))
+    }
     func testServiceLinksContainOnlyFixedDestinations() {
         for path in ["pet","travel","investment","ticker"] {
             XCTAssertEqual(NativeServiceDestination.parse(URL(string:"caresuite-care://service/"+path)!)?.rawValue,path)

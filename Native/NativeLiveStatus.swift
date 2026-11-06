@@ -49,7 +49,7 @@ import UIKit
             if !activities.isEmpty { petMessage = events != nil ? "완료 상태를 잠시 표시하고 종료해요.":"진행 표시를 종료했어요." }
         }
     }
-    func showTravel(prepareAt: Date,arrival: Date,walkingSeconds: Double,departureAt: Date? = nil) {
+    func showTravel(prepareAt: Date,arrival: Date,walkingSeconds: Double,departureAt: Date? = nil,manual: Bool = false) {
         let prior = travelTask
         travelTask = Task {
             await prior?.value
@@ -59,7 +59,7 @@ import UIKit
             let now = Date()
             let validDeparture = departureAt.flatMap { $0 >= prepareAt && $0 <= arrival ? $0 : nil }
             let state = DepartureAttributes.ContentState(leaveAt:prepareAt,trainAt:arrival,plannedAt:now,departureAt:validDeparture,updatedAt:now)
-            do { _ = try Activity.request(attributes:DepartureAttributes(station:"이동 준비",train:"도보 약 \(Int(ceil(walkingSeconds/60)))분",kind:"preparation"),content:ActivityContent(state:state,staleDate:min(prepareAt,now.addingTimeInterval(120))),pushType:nil);travelMessage = "표시 중 · 경로 예상은 2분 뒤 갱신이 필요해요." }
+            do { _ = try Activity.request(attributes:DepartureAttributes(station:"이동 준비",train:(manual ? "입력 이동 ":"도보 약 ")+String(Int(ceil(walkingSeconds/60)))+"분",kind:manual ? "manual":"preparation"),content:ActivityContent(state:state,staleDate:manual ? arrival:min(prepareAt,now.addingTimeInterval(120))),pushType:nil);travelMessage = manual ? "직접 입력한 계획을 표시 중이에요.":"표시 중 · 경로 예상은 2분 뒤 갱신이 필요해요." }
             catch { travelMessage = "표시를 시작하지 못했습니다. 기기 설정과 앱 서명을 확인하세요." }
         }
     }

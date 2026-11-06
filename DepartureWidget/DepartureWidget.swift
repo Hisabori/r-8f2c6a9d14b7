@@ -6,8 +6,8 @@ import SwiftUI
     var body: some Widget { DepartureWidget(); BarkAnalysisWidget(); ResearchStatusWidget() }
 }
 struct DepartureWidget: Widget {
-    private func stale(_ c: ActivityViewContext<DepartureAttributes>) -> Bool { c.isStale || !NativeActivityText.fresh(c.state.updatedAt,at:Date()) }
-    private func title(_ c: ActivityViewContext<DepartureAttributes>) -> String { c.attributes.kind == "preparation" ? "준비 시작":"출발 마감" }
+    private func stale(_ c: ActivityViewContext<DepartureAttributes>) -> Bool { NativeActivityText.travelStale(manual:c.attributes.kind == "manual",updated:c.state.updatedAt,arrival:c.state.trainAt,stale:c.isStale,now:Date()) }
+    private func title(_ c: ActivityViewContext<DepartureAttributes>) -> String { (c.attributes.kind == "preparation" || c.attributes.kind == "manual") ? "준비 시작":"출발 마감" }
     var body: some WidgetConfiguration {
         ActivityConfiguration(for:DepartureAttributes.self) { c in
             VStack(alignment:.leading,spacing:10) {
@@ -22,7 +22,7 @@ struct DepartureWidget: Widget {
                     ProgressView(timerInterval:planned...c.state.leaveAt,countsDown:false).tint(.blue)
                         .accessibilityLabel("준비 시작까지 시간 경과")
                 }
-                Text((c.attributes.kind == "preparation" ? "도착 목표 ":"마지막 조회 예측 ")+c.state.trainAt.formatted(date:.omitted,time:.shortened)).font(.caption).foregroundStyle(.secondary)
+                Text(((c.attributes.kind == "preparation" || c.attributes.kind == "manual") ? "도착 목표 ":"마지막 조회 예측 ")+c.state.trainAt.formatted(date:.omitted,time:.shortened)).font(.caption).foregroundStyle(.secondary)
             }.padding(18).activityBackgroundTint(Color(.secondarySystemGroupedBackground)).widgetURL(URL(string:"caresuite-care://service/travel"))
         } dynamicIsland: { c in
             DynamicIsland {

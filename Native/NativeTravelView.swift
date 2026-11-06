@@ -16,6 +16,8 @@ enum NativeTravelPlanning {
     @Published var arrival = Date().addingTimeInterval(3600)
     @Published var preparation = 10
     @Published var margin = 5
+    @Published var useManualTime = false
+    @Published var manualMinutes = 40
     @Published var selected: MKMapItem?
     private var locationRequested = false
     private var locationAt: Date?
@@ -37,12 +39,14 @@ enum NativeTravelPlanning {
            let ready = saved["preparation"] as? Int, (0...120).contains(ready),
            let buffer = saved["margin"] as? Int, (0...30).contains(buffer) {
             query = text; preparation = ready; margin = buffer
+            if let minutes = saved["manualMinutes"] as? Int,(1...1440).contains(minutes) { manualMinutes = minutes }
+            useManualTime = saved["useManualTime"] as? Bool ?? false
         }
     }
     func saveSettings() {
         let text = query.trimmingCharacters(in:.whitespacesAndNewlines)
         guard text.count <= 200 else { notice = "목적지 입력은 200자 이하로 작성하세요."; return }
-        UserDefaults.standard.set(["query":text,"preparation":preparation,"margin":margin],forKey:"suite.travel.settings")
+        UserDefaults.standard.set(["query":text,"preparation":preparation,"margin":margin,"manualMinutes":manualMinutes,"useManualTime":useManualTime],forKey:"suite.travel.settings")
         notice = "목적지 검색어와 준비·여유 시간을 이 기기에 저장했습니다."
     }
     func scheduleReminder(at date: Date) async {
@@ -134,6 +138,16 @@ struct NativeTravelView: View {
     private var preparation: Int { store.preparation }
     private var margin: Int { store.margin }
     private var selected: MKMapItem? { store.selected }
+    private var plannedSeconds: Double? {
+        store.useManualTime ? Double(store.manualMinutes)*60 : store.walkingSeconds
+    }
+    private func planSummary(start: Date,seconds: Double) -> String {
+        let depart = start.addingTimeInterval(Double(preparation)*60)
+        return "이동 계획\n"+store.query+"\n준비 시작 "+start.formatted(date:.abbreviated,time:.shortened)
+          +"\n출발 "+depart.formatted(date:.abbreviated,time:.shortened)
+          +"\n도착 목표 "+arrival.formatted(date:.abbreviated,time:.shortened)
+          +"\n"+(store.useManualTime ? "직접 입력 이동시간":"도보 예상")+" "+String(Int(ceil(seconds/60)))+"분"
+    }
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
@@ -160,10 +174,17 @@ struct NativeTravelView: View {
                     DatePicker("도착 희망 시각", selection: $store.arrival, displayedComponents: [.date, .hourAndMinute])
                     Stepper("외출 준비 \(preparation)분", value: $store.preparation, in: 0...120, step: 5)
                     Stepper("여유 시간 \(margin)분", value: $store.margin, in: 0...30)
-                    if let seconds = store.walkingSeconds, let start = NativeTravelPlanning.leaveBy(arrival: arrival, travelSeconds: seconds, preparationMinutes: preparation, marginMinutes: margin) {
-                        Text("도보 예상 \(Int(ceil(seconds/60)))분").font(.headline)
+                    Toggle("이동 시간 직접 입력",isOn:$store.useManualTime)
+                    if store.useManualTime {
+                        Stepper("이동 \(store.manualMinutes)분",value:$store.manualMinutes,in:1...1440)
+                    }
+                    if let seconds = plannedSeconds, let start = NativeTravelPlanning.leaveBy(arrival: arrival, travelSeconds: seconds, preparationMinutes: preparation, marginMinutes: margin) {
+                        Text((store.useManualTime ? "직접 입력 ":"도보 예상 ")+String(Int(ceil(seconds/60)))+"분").font(.headline)
+                        ShareLink(item:planSummary(start:start,seconds:seconds)) {
+                            Label("이동 계획 공유",systemImage:"square.and.arrow.up")
+                        }.frame(minHeight:44)
                         Button("준비 시작 알림 예약") { Task { await store.scheduleReminder(at:start) } }.frame(minHeight:44)
-                        Button("준비 시각을 잠금 화면에 표시") { NativeLiveStatus.shared.showTravel(prepareAt:start,arrival:arrival,walkingSeconds:seconds,departureAt:start.addingTimeInterval(Double(preparation)*60)) }.frame(minHeight:44)
+                        Button("준비 시각을 잠금 화면에 표시") { NativeLiveStatus.shared.showTravel(prepareAt:start,arrival:arrival,walkingSeconds:seconds,departureAt:start.addingTimeInterval(Double(preparation)*60),manual:store.useManualTime) }.frame(minHeight:44)
                         Button("이동 표시 종료") { NativeLiveStatus.shared.endTravel() }.font(.subheadline)
                         Text(activity.travelMessage).font(.caption).foregroundStyle(.secondary)
                         Text("준비 시작 \(start.formatted(date: .abbreviated, time: .shortened))").font(.title3.bold())
@@ -175,10 +196,12 @@ struct NativeTravelView: View {
                             selected.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeTransit])
                         }.frame(minHeight: 44)
                     }
-                    Text("앱 안의 예상 시간은 도보 기준입니다. 지하철 실시간 도착·혼잡도는 이번 네이티브 버전에 아직 이식되지 않았어요.").font(.caption).foregroundStyle(.secondary)
+                    Text("직접 입력한 시간 또는 마지막 도보 예상으로 계산합니다. 지하철 실시간 도착·혼잡도는 이 화면에 아직 연결되지 않았어요.").font(.caption).foregroundStyle(.secondary)
                 }.careCard()
             }.padding(20)
         }.background(CareAppearance.background).navigationTitle("이동 준비").navigationBarTitleDisplayMode(.inline)
+        .onChange(of:store.useManualTime) { _ in NativeLiveStatus.shared.endTravel() }
+        .onChange(of:store.manualMinutes) { _ in NativeLiveStatus.shared.endTravel() }
         .onChange(of:arrival) { _ in NativeLiveStatus.shared.endTravel() }
         .onChange(of:preparation) { _ in NativeLiveStatus.shared.endTravel() }
         .onChange(of:margin) { _ in NativeLiveStatus.shared.endTravel() }
