@@ -19,6 +19,8 @@ public struct NativeInvestmentView: View {
                     Divider()
                     NavigationLink { StrategyResearchView().environmentObject(store) } label: { Label("전략과 리서치", systemImage: "doc.text.magnifyingglass").frame(minHeight: 44) }.accessibilityIdentifier("investment-strategy-open")
                     Divider()
+                    NavigationLink { StrategyComparisonView() } label: { Label("전략 비교·비용 스트레스",systemImage:"chart.bar.xaxis").frame(minHeight:44) }.accessibilityIdentifier("strategy-comparison-open")
+                    Divider()
                     NavigationLink { SettingsView().environmentObject(store) } label: { Label("거래소와 연결 설정", systemImage: "slider.horizontal.3").frame(minHeight: 44) }.accessibilityIdentifier("investment-settings-open")
                 }.modifier(CareCard())
             }.padding(20)

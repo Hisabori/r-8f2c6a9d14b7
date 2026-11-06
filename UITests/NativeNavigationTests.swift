@@ -69,6 +69,19 @@ final class NativeNavigationTests: XCTestCase {
         XCTAssertTrue(link.waitForExistence(timeout:10))
         XCTAssertEqual(app.state,.runningForeground)
     }
+    func testStrategyComparisonRunsSyntheticWithoutOrders() {
+        let app = XCUIApplication();app.launch()
+        let investment = app.buttons["native-investment-open"]
+        if !investment.isHittable { app.swipeUp() }
+        XCTAssertTrue(investment.waitForExistence(timeout:20));investment.tap()
+        let comparison = app.buttons["strategy-comparison-open"]
+        if !comparison.isHittable { app.swipeUp() }
+        XCTAssertTrue(comparison.waitForExistence(timeout:10));comparison.tap()
+        let sample = app.buttons["strategy-comparison-sample"]
+        XCTAssertTrue(sample.waitForExistence(timeout:10));sample.tap()
+        XCTAssertTrue(app.staticTexts["합성 예제 · 실제 시장 성과 아님"].waitForExistence(timeout:20))
+        XCTAssertEqual(app.state,.runningForeground)
+    }
     func testOnCareOwnsNavigationWithoutFlutterHost() {
         let app = XCUIApplication(); app.launch()
         for id in ["native-pet-open", "native-travel-open", "native-investment-open"] {
