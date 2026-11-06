@@ -15,8 +15,8 @@ settings:
     TARGETED_DEVICE_FAMILY: '1,2'
     CODE_SIGNING_ALLOWED: 'NO'
     CODE_SIGNING_REQUIRED: 'NO'
-    MARKETING_VERSION: '0.4.9'
-    CURRENT_PROJECT_VERSION: '14'
+    MARKETING_VERSION: '0.4.10'
+    CURRENT_PROJECT_VERSION: '15'
 packages:
   OnnxRuntime:
     url: https://github.com/microsoft/onnxruntime-swift-package-manager
