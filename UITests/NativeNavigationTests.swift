@@ -108,6 +108,29 @@ final class NativeNavigationTests: XCTestCase {
         if !result.isHittable { app.swipeUp() }
         XCTAssertTrue(result.waitForExistence(timeout:10));XCTAssertEqual(app.state,.runningForeground)
     }
+    func testTradeConnectionRejectsPastedVariableWithoutNetwork() {
+        let app = XCUIApplication();app.launch()
+        let investment = app.buttons["native-investment-open"]
+        if !investment.isHittable { app.swipeUp() }
+        XCTAssertTrue(investment.waitForExistence(timeout:20));investment.tap()
+        let settings = app.buttons["investment-settings-open"]
+        if !settings.isHittable { app.swipeUp() };settings.tap()
+        let guide = app.buttons["거래소 API 설정 가이드"]
+        XCTAssertTrue(guide.waitForExistence(timeout:10));guide.tap()
+        let address = app.textFields["trade-server-address"]
+        XCTAssertTrue(address.waitForExistence(timeout:10));address.tap()
+        let value = address.value as? String ?? ""
+        address.typeText(String(repeating:XCUIKeyboardKey.delete.rawValue,count:value.count)+"https://fixture.invalid:8443")
+        let token = app.secureTextFields["trade-server-token"]
+        token.tap();token.typeText("TRADE_READ_TOKEN="+String(repeating:"x",count:48))
+        let save = app.buttons["거래 서버 설정 저장"]
+        for _ in 0..<4 { if save.isHittable { break };app.swipeUp() }
+        save.tap()
+        let message = app.staticTexts["trade-connection-message"]
+        for _ in 0..<4 { if message.isHittable { break };app.swipeUp() }
+        XCTAssertTrue(message.waitForExistence(timeout:10));XCTAssertTrue(message.label.contains("값만"))
+        XCTAssertEqual(app.state,.runningForeground)
+    }
     func testOnCareOwnsNavigationWithoutFlutterHost() {
         let app = XCUIApplication(); app.launch()
         for id in ["native-pet-open", "native-travel-open", "native-investment-open"] {
