@@ -77,4 +77,10 @@ final class TradeConnectionExperienceTests: XCTestCase {
   XCTAssertTrue(store.canSubmit);store.address="https://other.invalid";XCTAssertFalse(store.canSubmit)
   store.invalidateAccess();XCTAssertNil(store.access)
  }
+ @MainActor func testDepartureRevokesOrderRightsButRetainsRecoveryID() throws {
+  let store=TradeStore(),secret=String(repeating:"x",count:48)
+  store.address="https://fixture.invalid";store.savedBase=store.address;store.token=secret;store.savedToken=secret
+  try store.render(["mode":"MANUAL_SPOT_TRADE_BRIDGE","live_enabled":true,"can_configure":true,"can_trade":true],"capabilities","")
+  XCTAssertTrue(store.canSubmit);store.cancel();XCTAssertFalse(store.canSubmit);XCTAssertNil(store.review);XCTAssertNil(store.access)
+ }
 }

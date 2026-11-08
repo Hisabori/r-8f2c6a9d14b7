@@ -1,0 +1,2 @@
+# Client stability 0.4.15
+Leaving the trading screen or backgrounding revokes cached order permissions and previews; saved server credentials and recovery review IDs remain. Reconnect to verify current permissions before a new manual order. Every failed request revokes order permissions; requests are never retried. Status lookup remains available with saved credentials. REQUESTED cancellations require attention until CONFIRMED or TERMINAL. No startup requests, real exchange tests, credential changes or automatic orders were added.
