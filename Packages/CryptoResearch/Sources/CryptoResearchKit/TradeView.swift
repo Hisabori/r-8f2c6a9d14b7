@@ -74,10 +74,10 @@ struct TradeView:View {
  @StateObject private var store=TradeStore()
  @State private var confirmSubmit=false
  @State private var confirmCancel=false
- var body:some View{ScrollView{VStack(alignment:.leading,spacing:18){connection;strategyLink;ticket;if store.busy { loadingCard };performanceCard;sharedOrders;guide}.padding(20)}.background(Color(uiColor:.systemGroupedBackground)).navigationTitle("통합 거래소").scrollDismissesKeyboard(.interactively).onDisappear{store.cancel()}.onReceive(NotificationCenter.default.publisher(for:UIApplication.didEnterBackgroundNotification)){_ in store.cancel()}.onChange(of:store.key){_ in store.review=nil;store.performanceSummary=nil;store.shared=[]}.onChange(of:store.address){_ in store.invalidateAccess();store.review=nil;store.shared=[];store.performanceSummary=nil}.onChange(of:store.token){_ in store.invalidateAccess();store.review=nil;store.shared=[];store.performanceSummary=nil}.confirmationDialog("실제 지정가 주문을 제출할까요?",isPresented:$confirmSubmit,titleVisibility:.visible){Button("실제 주문 제출",role:.destructive){store.submit()};Button("취소",role:.cancel){}}message:{Text(store.reviewText+"\n모의 주문이 아닙니다.")}.alert("거래소에 취소를 요청할까요?",isPresented:$confirmCancel){Button("취소 요청",role:.destructive){store.cancelOrder()};Button("돌아가기",role:.cancel){}}message:{Text(store.lastDescription+"\n이미 체결된 수량은 취소되지 않습니다. 취소 후 주문 상태를 확인하세요.")}}
+ var body:some View{ScrollView{VStack(alignment:.leading,spacing:18){connection;market;performanceCard;strategyLink;ticket;sharedOrders;guide}.frame(maxWidth:640).padding(20).frame(maxWidth:.infinity)}.background(Color(uiColor:.systemGroupedBackground)).navigationTitle("통합 거래소").scrollDismissesKeyboard(.interactively).onDisappear{store.cancel()}.onReceive(NotificationCenter.default.publisher(for:UIApplication.didEnterBackgroundNotification)){_ in store.cancel()}.onChange(of:store.key){_ in store.review=nil;store.performanceSummary=nil;store.shared=[]}.onChange(of:store.address){_ in store.invalidateAccess();store.review=nil;store.shared=[];store.performanceSummary=nil}.onChange(of:store.token){_ in store.invalidateAccess();store.review=nil;store.shared=[];store.performanceSummary=nil}.confirmationDialog("실제 지정가 주문을 제출할까요?",isPresented:$confirmSubmit,titleVisibility:.visible){Button("실제 주문 제출",role:.destructive){store.submit()};Button("취소",role:.cancel){}}message:{Text(store.reviewText+"\n모의 주문이 아닙니다.")}.alert("거래소에 취소를 요청할까요?",isPresented:$confirmCancel){Button("취소 요청",role:.destructive){store.cancelOrder()};Button("돌아가기",role:.cancel){}}message:{Text(store.lastDescription+"\n이미 체결된 수량은 취소되지 않습니다. 취소 후 주문 상태를 확인하세요.")}}
  var connection:some View{
   VStack(alignment:.leading,spacing:12){
-   Text("시세 · 계좌 · 수동 실주문").font(.title2.bold())
+   Label("서버 연결", systemImage:"link").font(.title2.bold()).accessibilityAddTraits(.isHeader)
    Text("거래소 API 키는 Ubuntu 실행 서버에 보관합니다. 앱에는 서버 접근 토큰만 저장하며 모의 전략은 실제 주문을 만들지 않습니다.").font(.caption)
    Text("서버 주소").font(.headline)
    TextField("https://기기.개인네트워크.ts.net:8443",text:$store.address).textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder).accessibilityIdentifier("trade-server-address")
@@ -92,13 +92,13 @@ struct TradeView:View {
    if let health=store.healthSummary{Text(health).font(.caption)}
    Button("기기의 거래 토큰 삭제"){store.forget()}.disabled(store.busy).frame(minHeight:44)
    Text(store.message).font(.caption).textSelection(.enabled).accessibilityIdentifier("trade-connection-message")
-   if store.busy{ProgressView()}
+   if store.busy{loadingCard;ProgressView("서버 응답 대기 중")}
   }.modifier(CareCard())
  }
  var strategyLink: some View {
-  NavigationLink("현물 전략 계산기") {
+  NavigationLink {
    SpotScenarioView(symbol: store.base, currency: store.exchange == "bithumb" ? "KRW" : "USDT")
-  }.frame(minHeight:44)
+  } label: { Label("현물 전략 계산기", systemImage:"function").frame(minHeight:44) }.modifier(CareCard())
  }
  var loadingCard: some View {
   VStack(alignment:.leading,spacing:10) {
@@ -108,7 +108,13 @@ struct TradeView:View {
    }
   }.modifier(CareCard()).accessibilityHidden(true)
  }
- var ticket:some View{VStack(alignment:.leading,spacing:12){Picker("거래소 선택",selection:$store.exchange){ForEach(Array(TradeStore.ids.enumerated()),id:\.offset){i in Text(TradeStore.names[i.offset]).tag(i.element)}};Picker("거래 종목",selection:$store.base){ForEach(TradeStore.bases,id:\.self){Text($0).tag($0)}};Picker("실주문 방향",selection:$store.side){Text("매수").tag("buy");Text("매도").tag("sell")}.pickerStyle(.segmented);TextField("수량 (기준 코인)",text:$store.amount).keyboardType(.decimalPad).textFieldStyle(.roundedBorder);TextField("지정가 (빗썸 KRW · 나머지 USDT)",text:$store.price).keyboardType(.decimalPad).textFieldStyle(.roundedBorder);Button("선택 거래소 시세 조회"){store.call("v1/quote/"+store.exchange+"/"+store.base,nil,"quote",store.key)}.frame(minHeight:44);Button("선택 거래소 계좌 조회"){store.call("v1/balances/"+store.exchange,nil,"balance",store.key)}.frame(minHeight:44);Button("주문 내용 검토"){store.preview()}.disabled(store.busy || !store.canSubmit).frame(minHeight:44);Text(store.reviewText).font(.caption).textSelection(.enabled);Button("검토한 실제 주문 제출"){confirmSubmit=true}.disabled(store.review==nil || store.busy || !store.canSubmit).frame(minHeight:48).modifier(CareControl());Button("마지막 주문 상태 확인"){store.status()}.frame(minHeight:44);Button("마지막 주문 취소 요청"){confirmCancel=true}.disabled(store.last.isEmpty || store.busy || !store.canSubmit).frame(minHeight:44)}.modifier(CareCard())}
+ var market: some View {
+  VStack(alignment:.leading,spacing:12) {
+   Label("거래소와 종목",systemImage:"chart.bar.xaxis").font(.headline).accessibilityAddTraits(.isHeader)
+   Picker("거래소 선택",selection:$store.exchange){ForEach(Array(TradeStore.ids.enumerated()),id:\.offset){i in Text(TradeStore.names[i.offset]).tag(i.element)}};Picker("거래 종목",selection:$store.base){ForEach(TradeStore.bases,id:\.self){Text($0).tag($0)}};Button("선택 거래소 시세 조회"){store.call("v1/quote/"+store.exchange+"/"+store.base,nil,"quote",store.key)}.disabled(store.busy || !store.savedMatches()).frame(minHeight:44);Button("선택 거래소 계좌 조회"){store.call("v1/balances/"+store.exchange,nil,"balance",store.key)}.disabled(store.busy || !store.savedMatches()).frame(minHeight:44)
+  }.modifier(CareCard())
+ }
+ var ticket:some View{VStack(alignment:.leading,spacing:12){Label("수동 지정가 주문",systemImage:"checkmark.shield").font(.headline).accessibilityAddTraits(.isHeader);Picker("실주문 방향",selection:$store.side){Text("매수").tag("buy");Text("매도").tag("sell")}.pickerStyle(.segmented);TextField("수량 (기준 코인)",text:$store.amount).keyboardType(.decimalPad).textFieldStyle(.roundedBorder);TextField("지정가 (빗썸 KRW · 나머지 USDT)",text:$store.price).keyboardType(.decimalPad).textFieldStyle(.roundedBorder);Button("주문 내용 검토"){store.preview()}.disabled(store.busy || !store.canSubmit).frame(minHeight:44);Text(store.reviewText).font(.caption).textSelection(.enabled);Button("검토한 실제 주문 제출"){confirmSubmit=true}.disabled(store.review==nil || store.busy || !store.canSubmit).frame(minHeight:48).modifier(CareControl());Button("마지막 주문 상태 확인"){store.status()}.frame(minHeight:44);Button("마지막 주문 취소 요청"){confirmCancel=true}.disabled(store.last.isEmpty || store.busy || !store.canSubmit).frame(minHeight:44)}.modifier(CareCard())}
  var performanceCard: some View {
   VStack(alignment: .leading, spacing: 12) {
    Text("실현손익").font(.title2.bold())
