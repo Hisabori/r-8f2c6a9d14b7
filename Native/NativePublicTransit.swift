@@ -7,6 +7,8 @@ struct PublicTrainArrival: Identifiable {
     let direction: String
     let message: String
     let generatedAt: Date
+    var location: String = ""
+    var phase: String = ""
     func isFresh(at now: Date) -> Bool { (-30...120).contains(now.timeIntervalSince(generatedAt)) }
 }
 enum PublicTransitError: Error { case invalidInput, invalidResponse, tooLarge }
@@ -35,7 +37,7 @@ enum PublicTransitData {
                   let line = row["trainLineNm"] as? String,line.count <= 200,
                   let direction = row["updnLine"] as? String,direction.count <= 40,
                   let message = row["arvlMsg2"] as? String,message.count <= 300 else { return nil }
-            let value = PublicTrainArrival(id:index,line:line,direction:direction,message:message,generatedAt:date)
+            let value = PublicTrainArrival(id:index,line:line,direction:direction,message:message,generatedAt:date,location:String((row["arvlMsg3"] as? String ?? "").prefix(300)),phase:row["arvlCd"] as? String ?? "")
             return value.isFresh(at:now) ? value:nil
         }.prefix(30).map { $0 }
     }
@@ -121,6 +123,11 @@ struct NativePublicTransitView: View {
                                 VStack(alignment:.leading,spacing:4) {
                                     Text(row.line+" · "+row.direction).font(.headline)
                                     Text(row.isFresh(at:context.date) ? row.message:"오래된 정보 · 다시 조회하세요")
+                                    if row.isFresh(at:context.date) {
+                                        TrainPhaseStrip(code: row.phase)
+                                        if !row.location.isEmpty { Label(row.location, systemImage: "tram.fill") }
+                                        Text("서울시 도착정보 기반 위치 개요").font(.caption2).foregroundStyle(.secondary)
+                                    }
                                     Text("생성 "+row.generatedAt.formatted(date:.abbreviated,time:.standard)).font(.caption).foregroundStyle(.secondary)
                                 }
                             }
@@ -133,7 +140,16 @@ struct NativePublicTransitView: View {
                     Button("현재 시간대 평균 혼잡도") { loadCrowd() }.frame(minHeight:44)
                     Text(crowdStatus)
                     if let date = crowdAt { Text("선택 시각 "+date.formatted(date:.abbreviated,time:.shortened)).font(.caption) }
-                    ForEach(Array(crowd.enumerated()),id:\.offset) { _,text in Text(text) }
+                    ForEach(Array(crowd.enumerated()),id:\.offset) { _,text in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(text).font(.subheadline)
+                            if let percent = CrowdBarValue.parse(text) {
+                                ProgressView(value: min(percent,200), total: 200).tint(.teal)
+                                    .accessibilityLabel(text)
+                                Text("막대 눈금 0~200% · 100%는 정원 기준").font(.caption2).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                     Link("출처: 서울교통공사 · 공공데이터포털",destination:URL(string:"https://www.data.go.kr/data/15071311/fileData.do")!)
                 }.careCard()
             }.padding(20)
@@ -151,5 +167,43 @@ struct NativePublicTransitView: View {
             let now = Date();crowd = try PublicTransitData.crowd(Data(contentsOf:url),station:name,at:now);crowdAt = now
             crowdStatus = crowd.isEmpty ? "해당 역·시간대 통계가 없습니다.":"자료 기준 2026-06-30 · 정원 대비 평균 승차인원(%)"
         } catch { crowdStatus = "통계 자료를 읽지 못했습니다. 기존 이동 계획은 계속 사용할 수 있습니다." }
+    }
+}
+
+
+enum CrowdBarValue {
+    static func parse(_ text: String) -> Double? {
+        guard let last = text.components(separatedBy: " · ").last, last.hasSuffix("%"),
+              let value = Double(last.dropLast().replacingOccurrences(of:",",with:".")), value.isFinite, (0...500).contains(value) else { return nil }
+        return value
+    }
+}
+struct TrainPhaseStrip: View {
+    let code: String
+    static func index(_ code: String) -> Int? {
+        switch code {
+        case "3", "4", "5": return 0
+        case "0": return 1
+        case "1": return 2
+        case "2": return 3
+        default: return nil
+        }
+    }
+    var body: some View {
+        if let selected = Self.index(code) {
+            HStack(spacing: 0) {
+                ForEach(Array(["전역", "접근", "선택역", "출발"].enumerated()), id: \.offset) { index, label in
+                    VStack(spacing: 6) {
+                        Image(systemName: selected == index ? "tram.circle.fill" : "circle")
+                            .foregroundStyle(selected == index ? Color.accentColor : Color.secondary.opacity(0.4))
+                        Text(label).font(.caption)
+                    }.frame(maxWidth: .infinity)
+                    if index < 3 { Rectangle().fill(Color.secondary.opacity(0.25)).frame(height: 2) }
+                }
+            }.padding(.vertical, 8).accessibilityElement(children: .ignore)
+                .accessibilityLabel("열차 상태 " + ["전역", "접근", "선택역", "출발"][selected])
+        } else {
+            Label("운행 위치 상태 확인 필요", systemImage: "tram").font(.caption).foregroundStyle(.secondary)
+        }
     }
 }

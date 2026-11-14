@@ -14,8 +14,24 @@ enum StrategyProfile:String,CaseIterable {
  var minSpread:Double{self == .classic ? 0:0.001}
  var detail:String{self == .classic ? "자본10% · 손절1.5% · 익절3% · 손실한도5%":"자본5% · 손절1% · 익절2% · 손실한도3% · 청산 후 3봉 대기 · 진입 EMA 간격10bps"}
 }
+struct BacktestRisk: Codable {
+ let allocation: Double
+ let stop: Double
+ let target: Double
+ init(allocation: Double, stop: Double, target: Double) throws {
+  guard allocation.isFinite, stop.isFinite, target.isFinite,
+        (0.01...1).contains(allocation), (0.001...0.5).contains(stop), (0.001...1).contains(target)
+  else { throw StrategyError.invalid("진입 비중 1~100%, 손절 0.1~50%, 익절 0.1~100%") }
+  self.allocation = allocation; self.stop = stop; self.target = target
+ }
+}
 final class StrategyCore {
  let profile:StrategyProfile
+ let customRisk:BacktestRisk?
+ var allocation:Double{customRisk?.allocation ?? profile.allocation}
+ var stop:Double{customRisk?.stop ?? profile.stop}
+ var target:Double{customRisk?.target ?? profile.target}
+ var buyHoldReturn:Double?
  var cooldownUntil=0
  var curve:[EquityPoint]=[],fillRecords:[StrategyFill]=[],curveLimit=50000,wins=0,totalFees=0.0,grossWins=0.0,grossLosses=0.0,entryCost=0.0,priceCurrency="INPUT_PRICE_CURRENCY"
  var winRate:Double?{sells==0 ? nil:Double(wins)/Double(sells)}
@@ -25,22 +41,44 @@ final class StrategyCore {
  let start:Double,fee:Double,slip:Double
  var cash:Double,qty=0.0,entry=0.0,lastPrice=0.0,ema9=0.0,ema21=0.0,peak:Double,maxDD=0.0
  var bars=0,buys=0,sells=0,pending=0,halted=false,reason="준비",lastBar=Int64.min,fills:[String]=[]
- init(_ equity:Double,_ feeBps:Double,_ slipBps:Double,_ profile:StrategyProfile = .classic)throws{self.profile=profile;guard equity.isFinite,equity>0,feeBps.isFinite,(0...100).contains(feeBps),slipBps.isFinite,(0...100).contains(slipBps)else{throw StrategyError.invalid("자본 양수, 비용 0~100 bps")};start=equity;cash=equity;peak=equity;fee=feeBps/10000;slip=slipBps/10000}
+ init(_ equity:Double,_ feeBps:Double,_ slipBps:Double,_ profile:StrategyProfile = .classic,_ customRisk:BacktestRisk? = nil)throws{self.profile=profile;self.customRisk=customRisk;guard equity.isFinite,equity>0,feeBps.isFinite,(0...100).contains(feeBps),slipBps.isFinite,(0...100).contains(slipBps)else{throw StrategyError.invalid("자본 양수, 비용 0~100 bps")};start=equity;cash=equity;peak=equity;fee=feeBps/10000;slip=slipBps/10000}
  var equity:Double{cash+qty*lastPrice}
  func mark(_ price:Double){lastPrice=price;let e=equity;peak=max(peak,e);maxDD=max(maxDD,100*(peak-e)/peak);if e<=start*(1-profile.lossGate){halted=true;reason="프로필 손실 한도: 신규 진입 중지"}}
  func fill(_ t:Int64,_ side:String,_ p:Double,_ q:Double){fills.append(ISO8601DateFormatter().string(from:Date(timeIntervalSince1970:Double(t)/1000))+" "+side+String(format:" %.8f @ %.4f",q,p));if fills.count>5000{fills.removeFirst()};let f=p*q*fee;totalFees+=f;fillRecords.append(StrategyFill(timestamp_ms:t,side:side,price:p,quantity:q,fee:f));if fillRecords.count>5000{fillRecords.removeFirst()}}
- func open(_ t:Int64,_ price:Double){mark(price);let action=pending;pending=0;if action<0 && qty>0{sell(t,price,"EMA 매도")}else if action>0 && qty==0 && !halted && bars>=cooldownUntil{let p=price*(1+slip),budget=cash*profile.allocation;qty=budget/(p*(1+fee));entry=p;entryCost=budget;cash-=budget;buys+=1;fill(t,"모의 매수",p,qty)};mark(price)}
+ func open(_ t:Int64,_ price:Double){mark(price);let action=pending;pending=0;if action<0 && qty>0{sell(t,price,"EMA 매도")}else if action>0 && qty==0 && !halted && bars>=cooldownUntil{let p=price*(1+slip),budget=cash*allocation;qty=budget/(p*(1+fee));entry=p;entryCost=budget;cash-=budget;buys+=1;fill(t,"모의 매수",p,qty)};mark(price)}
  func sell(_ t:Int64,_ price:Double,_ why:String){guard qty>0 else{return};let p=price*(1-slip);fill(t,"모의 매도 · "+why,p,qty);let proceeds=qty*p*(1-fee),pnl=proceeds-entryCost;if pnl>0{wins+=1;grossWins+=pnl}else{grossLosses-=pnl};cash+=proceeds;qty=0;sells+=1;cooldownUntil=bars+profile.cooldown;mark(price)}
- func observe(_ t:Int64,_ price:Double){guard price.isFinite,price>0 else{return};if qty>0{if price<=entry*(1-profile.stop){sell(t,price,"관측 손절")}else if price>=entry*(1+profile.target){sell(t,price,"관측 익절")}};mark(price)}
+ func observe(_ t:Int64,_ price:Double){guard price.isFinite,price>0 else{return};if qty>0{if price<=entry*(1-stop){sell(t,price,"관측 손절")}else if price>=entry*(1+target){sell(t,price,"관측 익절")}};mark(price)}
  func close(_ b:StrategyBar)throws{guard b.t>lastBar else{throw StrategyError.invalid("중복/역순 봉")};lastBar=b.t;let a=ema9,z=ema21;ema9=bars==0 ? b.c:0.2*b.c+0.8*ema9;ema21=bars==0 ? b.c:2.0/22*b.c+20.0/22*ema21;bars+=1;mark(b.c);if bars>=30{if ema9>ema21 && a<=z && qty==0 && !halted && bars>=cooldownUntil && (ema9/ema21-1)>=profile.minSpread{pending=1}else if ema9<ema21 && a>=z && qty>0{pending = -1}};recordCurve(b.t);if !halted{reason="EMA9/21 · \(bars)봉 · 다음 관측 가격 체결 대기"}}
- func process(_ b:StrategyBar)throws{open(b.t,b.o);if qty>0{if b.o<=entry*(1-profile.stop){sell(b.t,b.o,"갭 손절")}else if b.l<=entry*(1-profile.stop){sell(b.t,entry*(1-profile.stop),"손절 우선")}else if b.h>=entry*(1+profile.target){sell(b.t,max(b.o,entry*(1+profile.target)),"익절")}};try close(b)}
+ func process(_ b:StrategyBar)throws{open(b.t,b.o);if qty>0{if b.o<=entry*(1-stop){sell(b.t,b.o,"갭 손절")}else if b.l<=entry*(1-stop){sell(b.t,entry*(1-stop),"손절 우선")}else if b.h>=entry*(1+target){sell(b.t,max(b.o,entry*(1+target)),"익절")}};try close(b)}
  static func syntheticRows()->[StrategyBar]{var rows:[StrategyBar]=[];for i in 0..<32{let t:Int64=1767225600000+Int64(i)*60000;let o:Double=i==31 ? 110:100;let h:Double=i>=30 ? 110:100;let l:Double=i==31 ? 110:100;let c:Double=i>=30 ? 110:100;rows.append(StrategyBar(t:t,o:o,h:h,l:l,c:c,v:0))};return rows}
 
- static func backtest(_ rows:[StrategyBar],_ equity:Double,_ fee:Double,_ slip:Double,_ profile:StrategyProfile = .classic)throws->StrategyCore{let e=try StrategyCore(equity,fee,slip,profile);for b in rows{if Task.isCancelled{throw StrategyError.invalid("취소됨")};try e.process(b)};if let last=rows.last{e.sell(last.t,last.c,"데이터 종료")};e.pending=0;if let last=rows.last{e.recordCurve(last.t)};return e}
+ static func backtest(_ rows:[StrategyBar], _ equity:Double, _ fee:Double, _ slip:Double,
+                      _ profile:StrategyProfile = .classic, _ customRisk:BacktestRisk? = nil) throws -> StrategyCore {
+  guard rows.count >= 2, rows.count <= 50000 else { throw StrategyError.invalid("2~50000봉 필요") }
+  let engine = try StrategyCore(equity,fee,slip,profile,customRisk)
+  for bar in rows {
+   if Task.isCancelled { throw StrategyError.invalid("취소됨") }
+   try engine.process(bar)
+  }
+  let last = rows[rows.count-1]
+  engine.sell(last.t,last.c,"데이터 종료")
+  engine.pending = 0
+  engine.recordCurve(last.t)
+  let purchase = rows[0].o * (1+engine.slip) * (1+engine.fee)
+  let proceeds = last.c * (1-engine.slip) * (1-engine.fee)
+  engine.buyHoldReturn = 100 * (proceeds/purchase-1)
+  return engine
+ }
  static func csv(_ raw:String)throws->[StrategyBar]{let lines=raw.replacingOccurrences(of:"\u{feff}",with:"").replacingOccurrences(of:"\r",with:"").components(separatedBy:"\n");guard lines.count>=3,lines.count<=50002 else{throw StrategyError.invalid("CSV 2~50000봉 필요")};let head=lines[0].components(separatedBy:",").map{$0.trimmingCharacters(in:.whitespaces).replacingOccurrences(of:"\"",with:"").lowercased()};let keys=["timestamp","open","high","low","close","volume"];guard keys.allSatisfy({head.contains($0)})else{throw StrategyError.invalid("timestamp,open,high,low,close,volume 필요")};let indices=keys.map{head.firstIndex(of:$0)!};let date=ISO8601DateFormatter(),fractional=ISO8601DateFormatter();fractional.formatOptions=[.withInternetDateTime,.withFractionalSeconds];var out:[StrategyBar]=[];var prev=Int64.min
  for (i,line) in lines.dropFirst().enumerated(){if line.trimmingCharacters(in:.whitespaces).isEmpty{continue};let f=line.components(separatedBy:",").map{$0.trimmingCharacters(in:.whitespaces).replacingOccurrences(of:"\"",with:"")};guard indices.max()!<f.count,let d=fractional.date(from:f[indices[0]]) ?? date.date(from:f[indices[0]])else{throw StrategyError.invalid("CSV \(i+2)행: 시간/열 오류")};let values=indices.dropFirst().compactMap{Double(f[$0])};guard values.count==5,values.allSatisfy({$0.isFinite})else{throw StrategyError.invalid("CSV 숫자 오류")};let t=Int64((d.timeIntervalSince1970*1000).rounded()),o=values[0],h=values[1],l=values[2],c=values[3],v=values[4];guard t>prev,min(o,h,l,c)>0,v>=0,l<=min(o,c),h>=max(o,c),h>=l else{throw StrategyError.invalid("CSV \(i+2)행: 순서/OHLCV 오류")};prev=t;out.append(StrategyBar(t:t,o:o,h:h,l:l,c:c,v:v))};guard (2...50000).contains(out.count)else{throw StrategyError.invalid("CSV 봉 수 오류")};return out}
- var summary:String{String(format:"모바일 EMA 현물 모의 전략 (기존 v1.6과 별도)\n가격 통화 기준 자본 %.2f → 평가 %.2f\n수익률 %+.4f%% · 최대 낙폭 %.4f%%\n매수 %d / 매도 %d · 보유 %.8f\n",start,equity,(equity/start-1)*100,maxDD,buys,sells,qty)+profile.label+" · "+reason+" · 재진입 대기 \(max(0,cooldownUntil-bars))봉\n"+profile.detail+String(format:"\n수수료 %.2f bps · 슬리피지 %.2f bps\n",fee*10000,slip*10000)+fills.suffix(8).joined(separator:"\n")}
- func report()->Data{let j:[String:Any]=["mode":profile == .classic ? "MOBILE_PAPER_EMA_SPOT_V2":"MOBILE_PAPER_EMA_SPOT_V3","engine_revision":"MOBILE_EMA_PROFILES_1","report_schema_version":2,"strategy_profile":profile.rawValue,"strategy_parameters":["fee_bps":fee*10000,"slippage_bps":slip*10000,"allocation_pct":profile.allocation*100,"stop_pct":profile.stop*100,"target_pct":profile.target*100,"loss_gate_pct":profile.lossGate*100,"cooldown_bars":Double(profile.cooldown),"min_ema_spread_bps":profile.minSpread*10000],"cooldown_remaining_bars":max(0,cooldownUntil-bars),"full_v1_1_implemented":false,"closed_trades":sells,"ending_equity":equity,"return_pct":(equity/start-1)*100,"max_drawdown_pct":maxDD,"position_quantity":qty,"halted":halted,"fills":fills,"fill_records":fillRecords.map{["timestamp_ms":$0.timestamp_ms,"side":$0.side,"price":$0.price,"quantity":$0.quantity,"fee":$0.fee] as [String:Any]},"equity_curve":curve.map{["bar_timestamp_ms":$0.bar_timestamp_ms,"equity":$0.equity] as [String:Any]},"win_rate":winRate.map{$0 as Any} ?? NSNull(),"profit_factor_net":profitFactor.map{$0 as Any} ?? NSNull(),"total_fees":totalFees,"price_currency":priceCurrency,"curve_time_basis":"input_or_observed_bar_timestamp","curve_truncated":bars>curve.count,"fill_records_truncated":buys+sells>fillRecords.count];return (try? JSONSerialization.data(withJSONObject:j,options:[.prettyPrinted,.sortedKeys])) ?? Data()}
+ var summary:String{String(format:"모바일 EMA 현물 모의 전략 (기존 v1.6과 별도)\n가격 통화 기준 자본 %.2f → 평가 %.2f\n수익률 %+.4f%% · 최대 낙폭 %.4f%%\n매수 %d / 매도 %d · 보유 %.8f\n",start,equity,(equity/start-1)*100,maxDD,buys,sells,qty)+profile.label+" · "+reason+" · 재진입 대기 \(max(0,cooldownUntil-bars))봉\n"+(customRisk == nil ? profile.detail : String(format:"커스텀 · 진입 %.1f%% · 손절 %.1f%% · 익절 %.1f%%",allocation*100,stop*100,target*100))+comparisonSummary+String(format:"\n수수료 %.2f bps · 슬리피지 %.2f bps\n",fee*10000,slip*10000)+fills.suffix(8).joined(separator:"\n")}
+ var comparisonSummary:String {
+  guard let buyHoldReturn else { return "" }
+  let rate = winRate.map { String(format:"%.1f%%", $0*100) } ?? "거래 없음"
+  return String(format:"\n단순보유(동일 비용, 100%% 투자) %+.4f%% · 초과수익 %+.4f%%p\n",buyHoldReturn,(equity/start-1)*100-buyHoldReturn)
+   + "승률 " + rate + String(format:" · 수수료 %.4f",totalFees)
+ }
+ func report()->Data{let j:[String:Any]=["mode":customRisk != nil ? "MOBILE_PAPER_EMA_CUSTOM_V4":profile == .classic ? "MOBILE_PAPER_EMA_SPOT_V2":"MOBILE_PAPER_EMA_SPOT_V3","engine_revision":"MOBILE_EMA_PROFILES_1","report_schema_version":2,"custom_risk_enabled":customRisk != nil,"buy_hold_return_pct":buyHoldReturn.map{$0 as Any} ?? NSNull(),"excess_return_pp":buyHoldReturn.map{((equity/start-1)*100-$0) as Any} ?? NSNull(),"strategy_profile":profile.rawValue,"strategy_parameters":["fee_bps":fee*10000,"slippage_bps":slip*10000,"allocation_pct":allocation*100,"stop_pct":stop*100,"target_pct":target*100,"loss_gate_pct":profile.lossGate*100,"cooldown_bars":Double(profile.cooldown),"min_ema_spread_bps":profile.minSpread*10000],"cooldown_remaining_bars":max(0,cooldownUntil-bars),"full_v1_1_implemented":false,"closed_trades":sells,"ending_equity":equity,"return_pct":(equity/start-1)*100,"max_drawdown_pct":maxDD,"position_quantity":qty,"halted":halted,"fills":fills,"fill_records":fillRecords.map{["timestamp_ms":$0.timestamp_ms,"side":$0.side,"price":$0.price,"quantity":$0.quantity,"fee":$0.fee] as [String:Any]},"equity_curve":curve.map{["bar_timestamp_ms":$0.bar_timestamp_ms,"equity":$0.equity] as [String:Any]},"win_rate":winRate.map{$0 as Any} ?? NSNull(),"profit_factor_net":profitFactor.map{$0 as Any} ?? NSNull(),"total_fees":totalFees,"price_currency":priceCurrency,"curve_time_basis":"input_or_observed_bar_timestamp","curve_truncated":bars>curve.count,"fill_records_truncated":buys+sells>fillRecords.count];return (try? JSONSerialization.data(withJSONObject:j,options:[.prettyPrinted,.sortedKeys])) ?? Data()}
 
 }
 final class LivePaper {
