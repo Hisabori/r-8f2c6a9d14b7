@@ -54,6 +54,27 @@ struct HealthOverviewCard: View {
                 Spacer()
                 Button("다음 날") { dayOffset = max(0, dayOffset - 1) }.disabled(dayOffset == 0).accessibilityIdentifier("health-day-next")
             }.frame(minHeight: 44)
+            VStack(alignment: .leading, spacing: 10) {
+                Text("최근 7일 · " + (focus == "물" ? "수분" : focus)).font(.headline)
+                HStack(alignment: .top, spacing: 4) {
+                    ForEach((0...6).reversed(), id: \.self) { offset in
+                        let date = HealthOverviewMetrics.snapshotDate(offset: offset)
+                        let row = HealthOverviewMetrics.rows(journal.entries, focus: focus, now: date).first!
+                        Button {
+                            dayOffset = offset
+                        } label: {
+                            VStack(spacing: 8) {
+                                Image(systemName: row.value == nil ? "circle" : "checkmark.circle.fill")
+                                    .foregroundStyle(row.value == nil ? Color.secondary : Palette.color(focus))
+                                Text(offset == 0 ? "오늘" : date.formatted(.dateTime.weekday(.narrow)))
+                                    .font(.caption)
+                            }.frame(maxWidth: .infinity, minHeight: 48)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(koreanDate(date, weekday: true) + (row.value == nil ? " 기록 없음" : " 기록 있음"))
+                    }
+                }
+            }
             Text("선택일 직접 기록한 항목 \(rows.filter { $0.value != nil }.count) / 4").font(.subheadline).accessibilityIdentifier("health-overview-count")
             Text("건강 점수가 아닌 기록 현황이에요. 비어 있어도 괜찮아요.").font(.caption).foregroundStyle(.secondary)
             Picker("먼저 볼 항목", selection: $focus) { ForEach(HealthOverviewMetrics.kinds, id: \.self) { Text($0 == "물" ? "수분" : $0).tag($0) } }.pickerStyle(.segmented).accessibilityIdentifier("health-overview-focus")

@@ -74,7 +74,20 @@ struct TradeView:View {
  @StateObject private var store=TradeStore()
  @State private var confirmSubmit=false
  @State private var confirmCancel=false
- var body:some View{ScrollView{VStack(alignment:.leading,spacing:18){connection;market;performanceCard;strategyLink;ticket;sharedOrders;guide}.frame(maxWidth:640).padding(20).frame(maxWidth:.infinity)}.background(Color(uiColor:.systemGroupedBackground)).navigationTitle("통합 거래소").scrollDismissesKeyboard(.interactively).onDisappear{store.cancel()}.onReceive(NotificationCenter.default.publisher(for:UIApplication.didEnterBackgroundNotification)){_ in store.cancel()}.onChange(of:store.key){_ in store.review=nil;store.performanceSummary=nil;store.shared=[]}.onChange(of:store.address){_ in store.invalidateAccess();store.review=nil;store.shared=[];store.performanceSummary=nil}.onChange(of:store.token){_ in store.invalidateAccess();store.review=nil;store.shared=[];store.performanceSummary=nil}.confirmationDialog("실제 지정가 주문을 제출할까요?",isPresented:$confirmSubmit,titleVisibility:.visible){Button("실제 주문 제출",role:.destructive){store.submit()};Button("취소",role:.cancel){}}message:{Text(store.reviewText+"\n모의 주문이 아닙니다.")}.alert("거래소에 취소를 요청할까요?",isPresented:$confirmCancel){Button("취소 요청",role:.destructive){store.cancelOrder()};Button("돌아가기",role:.cancel){}}message:{Text(store.lastDescription+"\n이미 체결된 수량은 취소되지 않습니다. 취소 후 주문 상태를 확인하세요.")}}
+ var body:some View{ScrollView{VStack(alignment:.leading,spacing:18){investmentOverview;connection;market;performanceCard;strategyLink;ticket;sharedOrders;guide}.frame(maxWidth:640).padding(20).frame(maxWidth:.infinity)}.background(Color(uiColor:.systemGroupedBackground)).navigationTitle("통합 거래소").scrollDismissesKeyboard(.interactively).onDisappear{store.cancel()}.onReceive(NotificationCenter.default.publisher(for:UIApplication.didEnterBackgroundNotification)){_ in store.cancel()}.onChange(of:store.key){_ in store.review=nil;store.performanceSummary=nil;store.shared=[]}.onChange(of:store.address){_ in store.invalidateAccess();store.review=nil;store.shared=[];store.performanceSummary=nil}.onChange(of:store.token){_ in store.invalidateAccess();store.review=nil;store.shared=[];store.performanceSummary=nil}.confirmationDialog("실제 지정가 주문을 제출할까요?",isPresented:$confirmSubmit,titleVisibility:.visible){Button("실제 주문 제출",role:.destructive){store.submit()};Button("취소",role:.cancel){}}message:{Text(store.reviewText+"\n모의 주문이 아닙니다.")}.alert("거래소에 취소를 요청할까요?",isPresented:$confirmCancel){Button("취소 요청",role:.destructive){store.cancelOrder()};Button("돌아가기",role:.cancel){}}message:{Text(store.lastDescription+"\n이미 체결된 수량은 취소되지 않습니다. 취소 후 주문 상태를 확인하세요.")}}
+ var investmentOverview: some View {
+  VStack(alignment: .leading, spacing: 12) {
+   Label("거래 준비 현황", systemImage: "checklist").font(.title2.bold())
+   Label(store.savedMatches() ? "서버 설정 저장됨" : "서버 설정 저장 필요",
+         systemImage: store.savedMatches() ? "checkmark.circle.fill" : "circle")
+   Label(store.access == nil ? "연결 및 권한 확인 필요" : "서버 권한 확인됨",
+         systemImage: store.access == nil ? "circle" : "checkmark.circle.fill")
+   Label(store.review == nil ? "주문 내용 검토 필요" : "검토 완료 · 입력 변경 시 다시 검토",
+         systemImage: store.review == nil ? "circle" : "checkmark.circle.fill")
+   Text("설정 → 권한 확인 → 종목과 수량 입력 → 검토 → 제출 확인")
+    .font(.caption).foregroundStyle(.secondary)
+  }.modifier(CareCard())
+ }
  var connection:some View{
   VStack(alignment:.leading,spacing:12){
    Label("서버 연결", systemImage:"link").font(.title2.bold()).accessibilityAddTraits(.isHeader)
