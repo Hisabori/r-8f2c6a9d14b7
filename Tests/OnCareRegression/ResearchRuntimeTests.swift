@@ -1,5 +1,5 @@
 import XCTest
-import OnnxRuntimeBindings
+import onnxruntime_objc
 @testable import CareSuiteNative
 
 final class ResearchRuntimeTests: XCTestCase {

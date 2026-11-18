@@ -1,7 +1,7 @@
 import Foundation
 import AVFoundation
 import CryptoKit
-import OnnxRuntimeBindings
+import onnxruntime_objc
 
 struct SleepResearchSummary: Codable {
     var model = "apsaa-pilot-v1"
