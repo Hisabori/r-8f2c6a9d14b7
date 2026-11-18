@@ -31,6 +31,7 @@ struct CommunityView:View {
  @Environment(\.openURL) private var openURL
  var analysis:CommunityAnalysis?{store.dataset.map{CommunityCore.analyze($0,symbol,hours,Int64(Date().timeIntervalSince1970*1000))}}
  var body:some View{ScrollView{VStack(alignment:.leading,spacing:18){controls;if let a=analysis{Text("검색 전 종목·기간 전체 집계").font(.caption).foregroundStyle(.secondary);Text(CommunityCore.summary(a)).font(.system(.caption,design:.monospaced)).textSelection(.enabled).modifier(CareCard());if let results = searchResults {
+ CommunityIntelligenceView(titles: results.hits.prefix(12).map { $0.post.title })
  Text("검색 결과 \(results.hits.count)건 · 별칭 중복 \(results.duplicates)건 제외").font(.headline)
  if results.hits.isEmpty { Text("검색 조건에 맞는 제목이 없습니다.").modifier(CareCard()) }
  ForEach(Array(results.hits.prefix(20).enumerated()),id:\.offset) { item in postCard(item.element) }
