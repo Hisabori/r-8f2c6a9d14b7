@@ -10,6 +10,7 @@ struct NativePetRecord: Codable, Identifiable {
     let file: String
     let duration: Double
     let windows: [PetSoundWindow]
+    var breed: String? = nil
     var summary: PetPatternSummary? { PetPatterns.summarize(windows, duration: duration) }
 }
 
@@ -19,6 +20,7 @@ struct NativePetRecord: Codable, Identifiable {
     @Published private(set) var busy = false
     @Published var notice: String?
     @Published var draftName = ""
+    @Published var draftBreed = "품종 모름"
     @Published var draftNote = ""
     private var recorder: AVAudioRecorder?
     private var recordingStart = Date()
@@ -34,6 +36,16 @@ struct NativePetRecord: Codable, Identifiable {
             let index = folder.appendingPathComponent("records.json")
             if FileManager.default.fileExists(atPath: index.path) { records = try JSONDecoder().decode([NativePetRecord].self, from: Data(contentsOf: index)) }
         } catch { healthyStorage = false; notice = "기존 기록을 읽지 못해 저장을 멈췄습니다. 파일을 보존한 뒤 다시 확인하세요." }
+    }
+    func audioURL(_ record:NativePetRecord)->URL? {
+        guard record.file == (record.file as NSString).lastPathComponent,!record.file.isEmpty else{return nil}
+        let url=folder.appendingPathComponent(record.file)
+        let resolved=url.resolvingSymlinksInPath();guard resolved.path.hasPrefix(folder.resolvingSymlinksInPath().path+"/"),(try? resolved.resourceValues(forKeys:[.isRegularFileKey]).isRegularFile)==true else{return nil};return resolved
+    }
+    func delete(_ record:NativePetRecord) {
+        guard healthyStorage,!recording,!busy else{return}
+        let remaining=records.filter{$0.id != record.id}
+        do {try JSONEncoder().encode(remaining).write(to:folder.appendingPathComponent("records.json"),options:[.atomic,.completeFileProtection]);records=remaining;if !remaining.contains(where:{$0.file==record.file}),let url=audioURL(record){try FileManager.default.removeItem(at:url)}}catch{notice="삭제를 완료하지 못했습니다. 남은 파일은 보존합니다."}
     }
     func start() async {
         guard !recording, !busy, healthyStorage else { return }
@@ -99,7 +111,7 @@ struct NativePetRecord: Codable, Identifiable {
                 }
             } }.value
             analysisGeneration = UUID()
-            let record = NativePetRecord(id: id, date: Date(), name: String(name.prefix(100)), note: String(note.prefix(2000)), file: target.lastPathComponent, duration: result.0, windows: result.1)
+            let record = NativePetRecord(id: id, date: Date(), name: String(name.prefix(100)), note: String(note.prefix(2000)), file: target.lastPathComponent, duration: result.0, windows: result.1, breed: draftBreed)
             var updated = records; updated.insert(record, at: 0)
             try JSONEncoder().encode(updated).write(to: folder.appendingPathComponent("records.json"), options: [.atomic, .completeFileProtection])
             records = updated; lastRecording = nil
@@ -128,6 +140,7 @@ struct NativePetView: View {
                     Toggle("잠금 화면에 녹음·분석 진행 표시",isOn:$live).font(.subheadline)
                     Text(activity.petMessage).font(.caption).foregroundStyle(.secondary)
                     TextField("강아지 이름", text: $store.draftName).textFieldStyle(.roundedBorder).accessibilityIdentifier("pet-draft-name")
+                    Picker("품종 · 직접 선택한 라벨",selection:$store.draftBreed){ForEach(["품종 모름","믹스견","말티즈","푸들","포메라니안","비숑 프리제","시추","치와와","요크셔 테리어","닥스훈트","웰시 코기","시바견","진돗개","골든 리트리버","래브라도 리트리버","보더 콜리","비글","슈나우저","시베리안 허스키","저먼 셰퍼드","프렌치 불도그","기타 품종"],id:\.self){Text($0).tag($0)}}
                     TextField("어떤 상황이었나요?", text: $store.draftNote, axis: .vertical).textFieldStyle(.roundedBorder)
                     Button { if store.recording { store.stop() } else { Task { await store.start() } } } label: {
                         Label(store.recording ? "녹음 종료" : "녹음 시작 · 최대 60초", systemImage: store.recording ? "stop.circle.fill" : "mic.fill").frame(maxWidth: .infinity, minHeight: 44)
@@ -139,6 +152,7 @@ struct NativePetView: View {
                     if store.busy { ProgressView("기기 안에서 분석하고 있어요") }
                     Text("기존 YAMNet 모델로 소리 후보를 분석합니다. 감정 번역이나 수의학적 진단이 아닙니다. 원음과 기록은 이 기기에 저장돼요.").font(.caption).foregroundStyle(.secondary)
                 }.careCard()
+                NavigationLink { PetJournalView() } label: { Label("기록 검색 · 일별 통계 · 내보내기",systemImage:"calendar.badge.clock").frame(minHeight:44) }
                 Text("반려생활 기록").font(.title2.bold())
                 if store.records.isEmpty { Text("아직 남긴 기록이 없어요.").foregroundStyle(.secondary).careCard() }
                 ForEach(store.records) { record in

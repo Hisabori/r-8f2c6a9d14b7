@@ -41,13 +41,13 @@ enum PublicTransitData {
             return value.isFresh(at:now) ? value:nil
         }.prefix(30).map { $0 }
     }
-    static func crowd(_ data: Data,station name: String,at date: Date) throws -> [String] {
+    static func crowd(_ data: Data,station name: String,at date: Date,dayOverride:String?=nil) throws -> [String] {
         guard data.count <= 1_048_576,let root = try JSONSerialization.jsonObject(with:data) as? [String:Any],
               let headers = root["headers"] as? [String],let rows = root["rows"] as? [[String]],rows.count <= 5000 else { throw PublicTransitError.invalidResponse }
         var calendar = Calendar(identifier:.gregorian);calendar.timeZone = TimeZone(identifier:"Asia/Seoul")!
         let hour = calendar.component(.hour,from:date),minute = calendar.component(.minute,from:date) < 30 ? "00":"30"
         let weekday = calendar.component(.weekday,from:date)
-        let day = weekday == 1 ? "일요일":weekday == 7 ? "토요일":"평일"
+        let day = dayOverride ?? (weekday == 1 ? "일요일":weekday == 7 ? "토요일":"평일")
         guard let column = headers.firstIndex(of:"\(hour)시\(minute)분") ?? (hour == 0 ? headers.firstIndex(of:"00시\(minute)분") : nil), column >= 5 else { return [] }
         return rows.compactMap { row -> String? in
             guard row.count > column,row.count >= 5,row[0] == day,station(row[3]) == station(name),
@@ -100,10 +100,12 @@ private final class TransitHTTPSDelegate: NSObject,URLSessionTaskDelegate {
 struct NativePublicTransitView: View {
     @StateObject private var store = PublicTransitStore()
     @State private var station = ""
-    @State private var key = ""
+    @State private var key = TransitDefaults.key()
     @State private var crowd: [String] = []
     @State private var crowdStatus = "키 없이 조회할 수 있는 2026-06-30 기준 평균 통계입니다."
     @State private var crowdAt: Date?
+    @State private var crowdSelection = Date()
+    @State private var crowdDay = "자동"
     var body: some View {
         ScrollView {
             VStack(alignment:.leading,spacing:18) {
@@ -111,7 +113,7 @@ struct NativePublicTransitView: View {
                 VStack(alignment:.leading,spacing:12) {
                     TextField("서울 지하철 역 이름",text:$station).textFieldStyle(.roundedBorder).accessibilityIdentifier("public-transit-station")
                     SecureField("서울 열린데이터 인증키",text:$key).textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder)
-                    Text("인증키와 역 이름은 조회 시 서울시 API에 HTTPS로 전송합니다. 키는 저장하지 않으며 화면을 나가면 지웁니다.").font(.caption).foregroundStyle(.secondary)
+                    Text("기본 인증키가 포함되어 있으며 직접 변경할 수 있습니다. 조회 시 키와 역 이름을 서울시 API에 HTTPS로 전송합니다. 입력한 변경값은 별도 저장하지 않습니다.").font(.caption).foregroundStyle(.secondary)
                     Link("서울시 API 안내·키 발급",destination:URL(string:"https://data.seoul.go.kr/dataList/OA-12764/A/1/datasetView.do")!)
                     Button("지하철 도착정보 조회") { store.load(station:station,key:key) }.disabled(store.busy).frame(minHeight:44)
                     if store.busy { ProgressView() }
@@ -124,7 +126,7 @@ struct NativePublicTransitView: View {
                                     Text(row.line+" · "+row.direction).font(.headline)
                                     Text(row.isFresh(at:context.date) ? row.message:"오래된 정보 · 다시 조회하세요")
                                     if row.isFresh(at:context.date) {
-                                        TrainPhaseStrip(code: row.phase)
+                                        TrainLocationView(phase: row.phase)
                                         if !row.location.isEmpty { Label(row.location, systemImage: "tram.fill") }
                                         Text("서울시 도착정보 기반 위치 개요").font(.caption2).foregroundStyle(.secondary)
                                     }
@@ -137,7 +139,10 @@ struct NativePublicTransitView: View {
                 VStack(alignment:.leading,spacing:12) {
                     Text("시간대별 평균 혼잡도").font(.headline)
                     Text("실시간 열차·객차 혼잡도가 아닙니다. 한국시간의 요일·30분 구간 기준이며 공휴일은 자동 반영하지 않습니다.").font(.caption).foregroundStyle(.secondary)
-                    Button("현재 시간대 평균 혼잡도") { loadCrowd() }.frame(minHeight:44)
+                    DatePicker("평균 통계 기준 시각 · 한국시간 기준 집계",selection:$crowdSelection,displayedComponents:[.date,.hourAndMinute]).environment(\.timeZone,TimeZone(identifier:"Asia/Seoul")!)
+                    Picker("요일 유형 · 공휴일은 직접 선택",selection:$crowdDay){ForEach(["자동","평일","토요일","일요일"],id:\.self){Text($0).tag($0)}}
+                    Button("현재 시각으로 맞추기"){crowdSelection=Date()}
+                    Button("선택 시간대 평균 혼잡도") { loadCrowd() }.frame(minHeight:44)
                     Text(crowdStatus)
                     if let date = crowdAt { Text("선택 시각 "+date.formatted(date:.abbreviated,time:.shortened)).font(.caption) }
                     ForEach(Array(crowd.enumerated()),id:\.offset) { _,text in
@@ -147,6 +152,7 @@ struct NativePublicTransitView: View {
                                 ProgressView(value: min(percent,200), total: 200).tint(.teal)
                                     .accessibilityLabel(text)
                                 Text("막대 눈금 0~200% · 100%는 정원 기준").font(.caption2).foregroundStyle(.secondary)
+                                TrainInteriorView(percent:percent)
                             }
                         }
                     }
@@ -155,7 +161,10 @@ struct NativePublicTransitView: View {
             }.padding(20)
         }.background(CareAppearance.background).navigationTitle("공공교통 정보")
         .onChange(of:station) { _ in store.cancel();crowd = [];crowdAt = nil }
+        .onChange(of:crowdSelection) { _ in crowd=[];crowdAt=nil }
+        .onChange(of:crowdDay) { _ in crowd=[];crowdAt=nil }
         .onChange(of:key) { _ in store.cancel() }
+        .onAppear { if key.isEmpty { key = TransitDefaults.key() } }
         .onDisappear { store.cancel();key = "" }
     }
     private func loadCrowd() {
@@ -164,7 +173,7 @@ struct NativePublicTransitView: View {
         guard !name.isEmpty else { crowdStatus = "역 이름을 입력하세요.";return }
         do {
             guard let url = Bundle.main.url(forResource:"transit-crowd-20260630",withExtension:"json") else { throw PublicTransitError.invalidResponse }
-            let now = Date();crowd = try PublicTransitData.crowd(Data(contentsOf:url),station:name,at:now);crowdAt = now
+            let now = crowdSelection;crowd = try PublicTransitData.crowd(Data(contentsOf:url),station:name,at:now,dayOverride:crowdDay=="자동" ? nil:crowdDay);crowdAt = now
             crowdStatus = crowd.isEmpty ? "해당 역·시간대 통계가 없습니다.":"자료 기준 2026-06-30 · 정원 대비 평균 승차인원(%)"
         } catch { crowdStatus = "통계 자료를 읽지 못했습니다. 기존 이동 계획은 계속 사용할 수 있습니다." }
     }

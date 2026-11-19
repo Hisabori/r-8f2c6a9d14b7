@@ -9,3 +9,5 @@ DerivedData/
 .env
 signing-store/
 __pycache__/
+
+**/transit-default.json

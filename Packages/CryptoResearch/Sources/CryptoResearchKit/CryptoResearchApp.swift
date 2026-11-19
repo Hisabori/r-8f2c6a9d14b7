@@ -23,6 +23,7 @@ struct MarketView:View {
  @State private var sort=0
  var filtered:[String] {let rows=store.symbols.filter{(!favoritesOnly || store.favorites.contains($0)) && (search.isEmpty || ($0+(store.names[$0] ?? "")).localizedCaseInsensitiveContains(search))};return rows.sorted{a,b in if sort==1 {let x=store.premium(a),y=store.premium(b);if x==nil{return false};if y==nil{return true};return x!>y!};return a<b}}
  var body:some View {Group{ScrollView{VStack(alignment:.leading,spacing:18){NavigationLink{TradeView()}label:{Label("통합 거래소 · 실주문",systemImage:"arrow.left.arrow.right").frame(maxWidth:.infinity,minHeight:48)}.modifier(CareControl());
+ NavigationLink { PublicMarketResearchView() } label: { Label("실제 청산 · 온체인",systemImage:"waveform.path.ecg").frame(minHeight:44) }.modifier(CareControl());
  HStack{Label(store.status,systemImage:store.connected ? "dot.radiowaves.left.and.right":"wifi.slash");Spacer();Text("모의매매 전용")}.font(.caption).foregroundStyle(.secondary)
  VStack(alignment:.leading,spacing:12){HStack{Text("\(store.names[store.selected] ?? store.selected) · \(store.selected)").font(.headline);Spacer();Button{store.toggleFavorite(store.selected)}label:{Image(systemName:store.favorites.contains(store.selected) ? "star.fill":"star").frame(width:44,height:44)}.accessibilityLabel("관심 종목 변경")}
  Text(money(store.price(store.selected))).font(.system(size:38,weight:.bold,design:.rounded)).monospacedDigit().minimumScaleFactor(0.6).lineLimit(1)

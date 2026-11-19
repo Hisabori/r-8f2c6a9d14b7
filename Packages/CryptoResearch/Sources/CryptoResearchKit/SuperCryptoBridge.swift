@@ -22,6 +22,8 @@ public struct NativeInvestmentView: View {
                     Divider()
                     NavigationLink { StrategyComparisonView(store:session.comparison,market:store) } label: { Label("전략 비교·비용 스트레스",systemImage:"chart.bar.xaxis").frame(minHeight:44) }.accessibilityIdentifier("strategy-comparison-open")
                     Divider()
+                    NavigationLink { PublicMarketResearchView() } label: { Label("실제 청산 · 온체인",systemImage:"waveform.path.ecg").frame(minHeight:44) }
+                    NavigationLink { CommunityView() } label: { Label("뉴스 · 국내 커뮤니티",systemImage:"text.bubble").frame(minHeight:44) }
                     NavigationLink { SettingsView().environmentObject(store) } label: { Label("거래소와 연결 설정", systemImage: "slider.horizontal.3").frame(minHeight: 44) }.accessibilityIdentifier("investment-settings-open")
                 }.modifier(CareCard())
             }.padding(20)
@@ -33,3 +35,5 @@ public struct NativeInvestmentView: View {
             .onChange(of: phase) { store.setForeground($0 == .active && visible) }
     }
 }
+
+public struct CommunityResearchEntry: View {public init(){};public var body: some View {CommunityView()}}

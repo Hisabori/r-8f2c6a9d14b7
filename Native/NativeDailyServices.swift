@@ -32,6 +32,9 @@ struct NativeDailyServices: View {
                 NativeInvestmentView().onAppear { router.note(.investment) }.toolbar(.hidden, for: .tabBar)
             } label: { service("투자와 리서치", detail: investment.researchSummary, symbol: "chart.xyaxis.line", color: Palette.purple) }
             .accessibilityIdentifier("native-investment-open")
+            NavigationLink { NativePublicTransitView() } label: { Label("지하철 도착 · 혼잡도",systemImage:"tram.fill").frame(minHeight:44) }
+            NavigationLink { PublicMarketResearchView() } label: { Label("실제 청산 · 온체인",systemImage:"waveform.path.ecg").frame(minHeight:44) }
+            NavigationLink { CommunityResearchEntry() } label: { Label("국내 커뮤니티 · AI 요약",systemImage:"text.bubble").frame(minHeight:44) }
             NavigationLink { TickerResearchView().onAppear { router.note(.ticker) }.toolbar(.hidden, for:.tabBar) } label: {
                 Label("바로 티커 분석",systemImage:"sparkle.magnifyingglass").frame(maxWidth:.infinity,minHeight:44)
             }.buttonStyle(.bordered).accessibilityIdentifier("home-ticker-open")
