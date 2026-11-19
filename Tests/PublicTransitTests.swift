@@ -1,6 +1,14 @@
 import XCTest
 @testable import CareSuiteNative
 final class PublicTransitTests: XCTestCase {
+    func testOfficialStationAliasesAndUnsafeInputs()throws {
+        XCTAssertEqual(try TransitLookup.query(" 서울역 "),"서울")
+        XCTAssertEqual(try TransitLookup.query("역삼역"),"역삼")
+        for name in ["응암","공릉","남한산성입구","대모산입구","천호","몽촌토성"] { XCTAssertEqual(TransitLookup.canonical(try TransitLookup.query(name+"역")),name) }
+        XCTAssertEqual(try PublicTransitData.endpoint(station:"응암역",key:"fixture").lastPathComponent,"응암순환(상선)")
+        for raw in ["", "역", "서울\n", "https://other.invalid", "서울?key=secret"] { XCTAssertThrowsError(try TransitLookup.query(raw)) }
+        XCTAssertTrue(TransitLookup.httpMessage(403).contains("인증"));XCTAssertTrue(TransitLookup.httpMessage(429).contains("한도"));XCTAssertTrue(TransitLookup.httpMessage(503).contains("서버"))
+    }
     private func date(_ value: String) -> Date { ISO8601DateFormatter().date(from:value)! }
     private func payload(_ generated: String,station: String = "서울") throws -> Data {
         try JSONSerialization.data(withJSONObject:["realtimeArrivalList":[["statnNm":station,"recptnDt":generated,"trainLineNm":"인천행","updnLine":"하행","arvlMsg2":"전역 출발"]]])

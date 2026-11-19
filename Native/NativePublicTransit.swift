@@ -11,14 +11,13 @@ struct PublicTrainArrival: Identifiable {
     var phase: String = ""
     func isFresh(at now: Date) -> Bool { (-30...120).contains(now.timeIntervalSince(generatedAt)) }
 }
-enum PublicTransitError: Error { case invalidInput, invalidResponse, tooLarge }
+enum PublicTransitError: Error { case invalidInput, invalidResponse, tooLarge, http(Int) }
 enum PublicTransitData {
     static func station(_ value: String) -> String {
-        let value = value.trimmingCharacters(in:.whitespacesAndNewlines)
-        return value.hasSuffix("역") ? String(value.dropLast()) : value
+        TransitLookup.canonical(value)
     }
     static func endpoint(station input: String,key: String) throws -> URL {
-        let name = input.trimmingCharacters(in:.whitespacesAndNewlines)
+        let name = try TransitLookup.query(input)
         guard !name.isEmpty,name.count <= 40,!name.contains(where: { $0.isNewline || $0 == "/" || $0 == "?" || $0 == "#" }),
               (1...128).contains(key.utf8.count),key.utf8.allSatisfy({ (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) }) else { throw PublicTransitError.invalidInput }
         var url = URL(string:"https://swopenapi.seoul.go.kr")!
@@ -82,7 +81,8 @@ private final class TransitHTTPSDelegate: NSObject,URLSessionTaskDelegate {
         task = Task {
             do {
                 let (stream,response) = try await session.bytes(from:url)
-                guard let http = response as? HTTPURLResponse,http.statusCode == 200 else { throw PublicTransitError.invalidResponse }
+                guard let http = response as? HTTPURLResponse else { throw PublicTransitError.invalidResponse }
+                guard http.statusCode == 200 else { throw PublicTransitError.http(http.statusCode) }
                 var data = Data()
                 for try await byte in stream { if Task.isCancelled { throw CancellationError() };guard data.count < 2_097_152 else { throw PublicTransitError.tooLarge };data.append(byte) }
                 let received = Date();let rows = try PublicTransitData.parse(data,station:station,now:received)
@@ -92,7 +92,9 @@ private final class TransitHTTPSDelegate: NSObject,URLSessionTaskDelegate {
             } catch {
                 guard !Task.isCancelled,generation == token else { return }
                 busy = false;task = nil;arrivals = [];receivedAt = nil
-                status = "조회 실패: 인증키 권한·HTTPS 제공 상태·네트워크를 확인하세요. 평문 HTTP로 재시도하지 않습니다."
+                if case PublicTransitError.http(let code) = error { status = TransitLookup.httpMessage(code) }
+                else if (error as? URLError)?.code == .timedOut { status = "서울시 연결 시간이 초과됐습니다. 네트워크·제공 상태를 확인하고 직접 다시 조회하세요." }
+                else { status = "조회 실패: 지원 역 이름·인증키 권한·HTTPS 연결을 확인하세요. 평문 HTTP로 재시도하지 않습니다." }
             }
         }
     }
