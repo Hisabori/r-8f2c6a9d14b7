@@ -26,14 +26,17 @@ struct LegacyPetImportView:View {
     @State private var records:[LegacyPetRecord]=[]
     @State private var preview:[LegacyPetRecord]=[]
     @State private var message="기존 Flutter history.json의 메타데이터를 미리 보고 가져옵니다. 원음과 기존 폴더를 자동 이동·삭제하지 않습니다."
-    @State private var importing=false,busy=false,healthy=true,exporting=false
+    @State private var importing=false
+    @State private var busy=false
+    @State private var healthy=true
+    @State private var exporting=false
     @State private var document=PetJournalDocument(data:Data())
     private var file:URL{FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("native-pet/legacy-history.json")}
     var body:some View{ScrollView{VStack(alignment:.leading,spacing:16){
         Text("이전 반려생활 기록 가져오기").font(.title2.bold())
         Text(message).font(.subheadline)
         Text("최대1MB·500건씩 가져오기, 총1000건. 동일 원본 내용은 중복 제외합니다. 이전 점수·감정·품종은 가져온 기록의 원문이며 새 모델 추론이나 검증된 감정/품종 판정이 아닙니다.").font(.caption).foregroundStyle(.secondary)
-        Button("기존 history.json 선택"){importing=true}.disabled(busy||!healthy)
+        Button("기존 history.json 선택"){importing=true}.disabled(busy || !healthy)
         if busy{ProgressView()}
         if !preview.isEmpty{Text("미리보기 \(preview.count)건").font(.headline);ForEach(Array(preview.prefix(5))){row in Text(row.name+" · "+row.breed+"\n"+row.date).font(.caption)};Button("중복을 제외하고 가져오기"){save()}.disabled(!healthy);Button("미리보기 취소"){preview=[]}}
         Button("이전 기록 원문 JSON 내보내기"){do{let objects=try records.map{try JSONSerialization.jsonObject(with:$0.original)};document=PetJournalDocument(data:try JSONSerialization.data(withJSONObject:objects,options:[.prettyPrinted,.sortedKeys]));exporting=true}catch{message="내보내기 자료 오류"}}.disabled(records.isEmpty)
