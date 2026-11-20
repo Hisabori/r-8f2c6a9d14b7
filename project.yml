@@ -15,8 +15,8 @@ settings:
     TARGETED_DEVICE_FAMILY: '1,2'
     CODE_SIGNING_ALLOWED: 'NO'
     CODE_SIGNING_REQUIRED: 'NO'
-    MARKETING_VERSION: '0.4.23'
-    CURRENT_PROJECT_VERSION: '28'
+    MARKETING_VERSION: '0.4.24'
+    CURRENT_PROJECT_VERSION: '29'
 packages:
   CryptoResearch:
     path: Packages/CryptoResearch

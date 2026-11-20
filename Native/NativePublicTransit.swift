@@ -104,6 +104,7 @@ struct NativePublicTransitView: View {
     @State private var station = ""
     @State private var key = TransitDefaults.key()
     @State private var crowd: [String] = []
+    @State private var comparisons:[CrowdComparison]=[]
     @State private var crowdStatus = "키 없이 조회할 수 있는 2026-06-30 기준 평균 통계입니다."
     @State private var crowdAt: Date?
     @State private var crowdSelection = Date()
@@ -147,6 +148,11 @@ struct NativePublicTransitView: View {
                     Button("선택 시간대 평균 혼잡도") { loadCrowd() }.frame(minHeight:44)
                     Text(crowdStatus)
                     if let date = crowdAt { Text("선택 시각 "+date.formatted(date:.abbreviated,time:.shortened)).font(.caption) }
+                    if !comparisons.isEmpty {
+                        Text("전후 1시간, 덜 붐비는 시간 찾기").font(.headline)
+                        Text("같은 요일·호선·방향의 30분 평균 통계를 비교합니다. 날짜 경계를 넘기지 않으며, 자료가 없는 시간은 순위에서 제외합니다. 막대 0~200%, 실시간 예측이 아닙니다.").font(.caption).foregroundStyle(.secondary)
+                        ForEach(comparisons){profile in CrowdComparisonView(profile:profile)}
+                    }
                     ForEach(Array(crowd.enumerated()),id:\.offset) { _,text in
                         VStack(alignment: .leading, spacing: 8) {
                             Text(text).font(.subheadline)
@@ -162,22 +168,24 @@ struct NativePublicTransitView: View {
                 }.careCard()
             }.padding(20)
         }.background(CareAppearance.background).navigationTitle("공공교통 정보")
-        .onChange(of:station) { _ in store.cancel();crowd = [];crowdAt = nil }
-        .onChange(of:crowdSelection) { _ in crowd=[];crowdAt=nil }
-        .onChange(of:crowdDay) { _ in crowd=[];crowdAt=nil }
+        .onChange(of:station) { _ in store.cancel();crowd = [];comparisons=[];crowdAt = nil }
+        .onChange(of:crowdSelection) { _ in crowd=[];comparisons=[];crowdAt=nil }
+        .onChange(of:crowdDay) { _ in crowd=[];comparisons=[];crowdAt=nil }
         .onChange(of:key) { _ in store.cancel() }
         .onAppear { if key.isEmpty { key = TransitDefaults.key() } }
         .onDisappear { store.cancel();key = "" }
     }
     private func loadCrowd() {
-        crowd = [];crowdAt = nil
+        crowd = [];comparisons=[];crowdAt = nil
         let name = station.trimmingCharacters(in:.whitespacesAndNewlines)
         guard !name.isEmpty else { crowdStatus = "역 이름을 입력하세요.";return }
         do {
             guard let url = Bundle.main.url(forResource:"transit-crowd-20260630",withExtension:"json") else { throw PublicTransitError.invalidResponse }
-            let now = crowdSelection;crowd = try PublicTransitData.crowd(Data(contentsOf:url),station:name,at:now,dayOverride:crowdDay=="자동" ? nil:crowdDay);crowdAt = now
+            let now = crowdSelection;let data=try Data(contentsOf:url)
+            crowd = try PublicTransitData.crowd(data,station:name,at:now,dayOverride:crowdDay=="자동" ? nil:crowdDay)
+            comparisons=try CrowdComparison.profiles(data,station:name,at:now,dayOverride:crowdDay=="자동" ? nil:crowdDay);crowdAt = now
             crowdStatus = crowd.isEmpty ? "해당 역·시간대 통계가 없습니다.":"자료 기준 2026-06-30 · 정원 대비 평균 승차인원(%)"
-        } catch { crowdStatus = "통계 자료를 읽지 못했습니다. 기존 이동 계획은 계속 사용할 수 있습니다." }
+        } catch { crowd=[];comparisons=[];crowdAt=nil;crowdStatus = "통계 자료를 읽지 못했습니다. 기존 이동 계획은 계속 사용할 수 있습니다." }
     }
 }
 
