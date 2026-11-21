@@ -9,6 +9,7 @@ enum TrainInteriorDensity {
 }
 struct TrainInteriorView:View {
     let percent:Double
+    var illustrative=false
     var body:some View {
         VStack(alignment:.leading,spacing:8){
             Text("객실 내부 · 평균 밀도 시뮬레이션").font(.headline)
@@ -33,7 +34,7 @@ struct TrainInteriorView:View {
                 }
             }.aspectRatio(720.0/450.0,contentMode:.fit).clipShape(RoundedRectangle(cornerRadius:18))
             .accessibilityLabel("평균 혼잡도 \(percent,specifier:"%.1f")퍼센트의 객실 밀도 예시")
-            Text("통계값 \(percent,specifier:"%.1f")% · 그림은 0~200% 범위에 맞춘 예시입니다. 사람 수·좌석·객차별 실시간 상태를 재현하지 않습니다.").font(.caption2).foregroundStyle(.secondary)
+            Text("\(illustrative ? "시각화 가정값":"통계값") \(percent,specifier:"%.1f")% · 그림은 0~200% 범위에 맞춘 예시입니다. 사람 수·좌석·객차별 실시간 상태를 재현하지 않습니다.").font(.caption2).foregroundStyle(.secondary)
         }
     }
 }

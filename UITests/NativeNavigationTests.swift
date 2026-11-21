@@ -1,5 +1,15 @@
 import XCTest
 final class NativeNavigationTests: XCTestCase {
+    func testRideSimulationOpensAndCalculatesWithoutStartingPlayback(){
+        let app=XCUIApplication();app.launch()
+        let travel=app.buttons["native-travel-open"];XCTAssertTrue(travel.waitForExistence(timeout:20));if !travel.isHittable{app.swipeUp()};travel.tap()
+        let transit=app.buttons["public-transit-open"];XCTAssertTrue(transit.waitForExistence(timeout:10));transit.tap()
+        let ride=app.buttons["ride-motion-open"];for _ in 0..<5{if ride.isHittable{break};app.swipeUp()};XCTAssertTrue(ride.isHittable);ride.tap()
+        XCTAssertTrue(app.navigationBars["전철 흔들림 실험"].waitForExistence(timeout:10))
+        let calculate=app.buttons["ride-motion-calculate"];for _ in 0..<5{if calculate.isHittable{break};app.swipeUp()};XCTAssertTrue(calculate.isHittable);calculate.tap()
+        for _ in 0..<5{if app.staticTexts["ride-motion-status"].isHittable{break};app.swipeDown()}
+        XCTAssertEqual(app.staticTexts["ride-motion-status"].label,"가상 조건의 5초 시점 계산값입니다.");XCTAssertEqual(app.state,.runningForeground)
+    }
     func testPetDraftSurvivesReturningHome() {
         let app = XCUIApplication();app.launch()
         let pet = app.buttons["native-pet-open"]

@@ -146,6 +146,7 @@ struct NativePublicTransitView: View {
                     Picker("요일 유형 · 공휴일은 직접 선택",selection:$crowdDay){ForEach(["자동","평일","토요일","일요일"],id:\.self){Text($0).tag($0)}}
                     Button("현재 시각으로 맞추기"){crowdSelection=Date()}
                     Button("선택 시간대 평균 혼잡도") { loadCrowd() }.frame(minHeight:44)
+                    NavigationLink("전철 흔들림 계산 실험"){RideMotionView()}.frame(minHeight:44).accessibilityIdentifier("ride-motion-open")
                     Text(crowdStatus)
                     if let date = crowdAt { Text("선택 시각 "+date.formatted(date:.abbreviated,time:.shortened)).font(.caption) }
                     if !comparisons.isEmpty {
