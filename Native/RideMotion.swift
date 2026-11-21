@@ -47,8 +47,8 @@ struct RideMotionView:View {
     }.padding(20)}.navigationTitle("전철 흔들림 실험")
         .task(id:running){guard running else{return};let start=ProcessInfo.processInfo.systemUptime;while !Task.isCancelled,running,!reduceMotion,scene == .active{let elapsed=max(0,min(30,ProcessInfo.processInfo.systemUptime-start));frame=(try? RideMotion.sample(mode,elapsed)) ?? .zero;if elapsed>=30{running=false;message="30초 재생 완료 · 계산값을 유지합니다.";break};try? await Task.sleep(nanoseconds:50_000_000)}}
         .onChange(of:mode){_ in running=false;frame = .zero;message="조건 변경 · 계산·재생은 직접 시작하세요."}
-        .onChange(of:reduceMotion){if $0{running=false;frame = .zero}}
-        .onChange(of:scene){if $0 != .active{running=false;frame = .zero}}
+        .onChange(of:reduceMotion){if $0{running=false;frame = .zero;message="동작 줄이기 설정으로 재생을 중지했습니다."}}
+        .onChange(of:scene){if $0 != .active{running=false;frame = .zero;message="화면을 떠나 재생을 중지했습니다."}}
         .onDisappear{running=false;frame = .zero}
     }
 }
