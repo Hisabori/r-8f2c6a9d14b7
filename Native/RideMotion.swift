@@ -36,7 +36,7 @@ struct RideMotionView:View {
         Text("전철의 흔들림, 가정값으로 계산").font(.title2.bold())
         Text(message).font(.subheadline).accessibilityIdentifier("ride-motion-status")
         Picker("가상 운행 조건",selection:$mode){ForEach(0..<4){Text(RideMotion.names[$0]).tag($0)}}.pickerStyle(.segmented)
-        TrainInteriorView(percent:34,illustrative:true).rotationEffect(.degrees(frame.roll)).rotation3DEffect(.degrees(frame.pitch),axis:(x:1,y:0,z:0),perspective:0.2).offset(x:max(-6,min(6,frame.roll*2)),y:max(-4,min(4,frame.pitch))).padding(8).clipped().accessibilityLabel("가상 열차 객실 · 시각화용 고정 밀도 34퍼센트")
+        TrainInteriorView(percent:0,illustrative:true).rotationEffect(.degrees(frame.roll)).rotation3DEffect(.degrees(frame.pitch),axis:(x:1,y:0,z:0),perspective:0.2).offset(x:max(-6,min(6,frame.roll*2)),y:max(-4,min(4,frame.pitch))).padding(8).clipped().accessibilityLabel("가상 열차 객실 · 시각화용 빈 객실")
         Text(String(format:"속도 %.1f km/h\n횡가속도 %.3f m/s² · 종가속도 %.3f m/s²\n표시 롤 %.2f° · 피치 %.2f°",frame.speed,frame.lateral,frame.longitudinal,frame.roll,frame.pitch)).font(.system(.subheadline,design:.monospaced)).accessibilityHidden(running)
         Button("5초 시점 계산만"){running=false;frame=(try? RideMotion.sample(mode,5)) ?? .zero;message="가상 조건의 5초 시점 계산값입니다."}.accessibilityIdentifier("ride-motion-calculate")
         Button(running ? "재생 중지":"흔들림 재생 · 최대 30초"){

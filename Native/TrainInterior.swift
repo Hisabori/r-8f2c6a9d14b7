@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 enum TrainInteriorDensity {
     static func counts(_ value:Double)->(Int,Int)? {
         guard value.isFinite,(0...500).contains(value) else{return nil}
@@ -8,6 +9,7 @@ enum TrainInteriorDensity {
     }
 }
 struct TrainInteriorView:View {
+    private static let backdrop=UIImage(named:"train-cabin-warm-v1")
     let percent:Double
     var illustrative=false
     var body:some View {
@@ -18,6 +20,7 @@ struct TrainInteriorView:View {
                 func polygon(_ points:[CGPoint],_ color:Color){var p=Path();p.addLines(points);p.closeSubpath();context.fill(p,with:.color(color))}
                 func box(_ rect:CGRect,_ color:Color,_ radius:CGFloat=8){context.fill(Path(roundedRect:rect,cornerRadius:radius),with:.color(color))}
                 func point(_ u:Double,_ z:Double,_ height:Double=0)->CGPoint{CGPoint(x:360+u*(120+240*z),y:250+190*z-height*(0.48+0.75*z))}
+                if let backdrop=Self.backdrop{context.draw(Image(uiImage:backdrop),in:CGRect(x:0,y:0,width:720,height:450))}else{
                 polygon([.init(x:0,y:0),.init(x:720,y:0),.init(x:480,y:70),.init(x:240,y:70)],Color(red:0.95,green:0.96,blue:0.97))
                 polygon([.init(x:0,y:0),.init(x:240,y:70),.init(x:240,y:250),.init(x:0,y:450)],Color(red:0.89,green:0.92,blue:0.94))
                 polygon([.init(x:720,y:0),.init(x:480,y:70),.init(x:480,y:250),.init(x:720,y:450)],Color(red:0.89,green:0.92,blue:0.94))
@@ -25,6 +28,7 @@ struct TrainInteriorView:View {
                 box(CGRect(x:240,y:70,width:240,height:180),Color(red:0.85,green:0.89,blue:0.92),0)
                 box(CGRect(x:285,y:95,width:150,height:155),.white,8);box(CGRect(x:298,y:112,width:55,height:74),.cyan.opacity(0.2));box(CGRect(x:366,y:112,width:55,height:74),.cyan.opacity(0.2))
                 for side in [-1.0,1.0]{polygon([point(side,0.08,235),point(side,0.95,235),point(side,0.95,115),point(side,0.08,115)],.cyan.opacity(0.17));polygon([point(side*0.65,0.05,30),point(side,0.05,30),point(side,0.95,30),point(side*0.65,0.95,30)],.blue.opacity(0.5));var rail=Path();rail.move(to:point(side*0.52,0.03,225));rail.addLine(to:point(side*0.52,0.98,225));context.stroke(rail,with:.color(.gray),lineWidth:4)}
+                }
                 if let (seated,standing)=TrainInteriorDensity.counts(percent){
                     var people:[(Double,Double,Bool,Int)]=[]
                     for i in 0..<seated{people.append((i%2==0 ? -0.78:0.78,0.12+Double(i/2)*0.145,true,i))}
