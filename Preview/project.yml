@@ -44,6 +44,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.caresuite.trainpreview.tests
         GENERATE_INFOPLIST_FILE: 'YES'
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/OnCareTrainPreview.app/OnCareTrainPreview
+        BUNDLE_LOADER: $(TEST_HOST)
   PreviewUITests:
     type: bundle.ui-testing
     platform: iOS
